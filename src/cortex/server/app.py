@@ -118,10 +118,11 @@ class MLXWorker:
 
 class State:
     def __init__(self, cfg: Config, loader=None, library: Library | None = None,
-                 trainer: Trainer | None = None, spawn=None, delta_fn=None):
+                 trainer: Trainer | None = None, spawn=None, delta_fn=None, demo: bool = False):
         self.cfg = cfg
         self.lock = threading.RLock()
         self.worker = MLXWorker()
+        self.demo = demo or loader is not None      # 模拟后端只在测试/显式演示时出现在选择列表里
         self.backend: Any = None
         self.active: str | None = None
         self.adapter: str | None = None
@@ -136,6 +137,8 @@ class State:
     # ---- models
     def model_names(self) -> list[str]:
         names = [e["key"] for e in self.library.entries()]
+        if not self.demo:
+            return names
         return names + [n for n, c in self.cfg.candidates.items() if c.backend == "mock" and c.mode == "chat"]
 
     def candidate(self, name: str):

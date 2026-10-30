@@ -14,7 +14,7 @@ class TestServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cfg = load_config(PROJECT_ROOT / "config" / "cortex.toml", None)
-        cls.httpd = serve(cfg, port=0, block=False)
+        cls.httpd = serve(cfg, port=0, block=False, demo=True)
         cls.port = cls.httpd.server_address[1]
         cls.t = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
         cls.t.start()
@@ -115,3 +115,11 @@ class TestMLXThreadAffinity(unittest.TestCase):
         self.assertEqual(out, ["ok"])
         self.assertEqual(len(set(seen)), 1)
         self.assertNotEqual(seen[0], threading.get_ident())
+
+
+class TestNoDemoByDefault(unittest.TestCase):
+    def test_demo_model_hidden_in_real_use(self):
+        from cortex.server.app import State
+        from cortex.config import load_config
+        self.assertNotIn("demo-chat", State(load_config()).model_names())
+        self.assertIn("demo-chat", State(load_config(), demo=True).model_names())
