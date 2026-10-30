@@ -86,3 +86,32 @@ class TestServer(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMLXThreadAffinity(unittest.TestCase):
+    """MLX streams are thread-local: load and generate must run on the same thread."""
+
+    def test_load_and_stream_share_one_thread(self):
+        import threading
+        from cortex.server.app import State
+        seen = []
+
+        class B:
+            num_layers = 2
+
+            def __init__(self):
+                seen.append(threading.get_ident())
+
+            def stream_chat(self, messages, **kw):
+                seen.append(threading.get_ident())
+                yield {"text": "ok", "energy": [0, 0], "tps": 1.0}
+
+        import tempfile, pathlib
+        from cortex.config import load_config
+        st = State(load_config(), loader=lambda name: B())
+        name = st.model_names()[0]
+        st.select(name)
+        out = [c["text"] for c in st.worker.stream(lambda: st.backend.stream_chat([]))]
+        self.assertEqual(out, ["ok"])
+        self.assertEqual(len(set(seen)), 1)
+        self.assertNotEqual(seen[0], threading.get_ident())

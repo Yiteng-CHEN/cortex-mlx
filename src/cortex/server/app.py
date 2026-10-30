@@ -14,6 +14,7 @@ import gc
 import json
 import subprocess
 import sys
+import queue
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -34,11 +35,93 @@ class NotDownloaded(Exception):
     pass
 
 
+class MLXWorker:
+    """One dedicated thread for everything that touches MLX.
+
+    MLX streams are thread-local: a model loaded on one HTTP-handler thread cannot be used from another
+    ("There is no Stream(gpu, N) in current thread"). Loading, generating and unloading all run here.
+    """
+
+    def __init__(self):
+        self._q: queue.Queue = queue.Queue()
+        self._t = threading.Thread(target=self._loop, name="mlx-worker", daemon=True)
+        self._t.start()
+
+    def _loop(self):
+        while True:
+            fn = self._q.get()
+            try:
+                fn()
+            except BaseException:      # each job reports its own errors
+                pass
+
+    def call(self, fn, *args, **kw):
+        if threading.current_thread() is self._t:
+            return fn(*args, **kw)
+        box: dict = {}
+        done = threading.Event()
+
+        def job():
+            try:
+                box["v"] = fn(*args, **kw)
+            except BaseException as e:
+                box["e"] = e
+            finally:
+                done.set()
+        self._q.put(job)
+        done.wait()
+        if "e" in box:
+            raise box["e"]
+        return box.get("v")
+
+    def stream(self, gen_factory):
+        """Drive a generator on the worker thread; yield its items here. Closing this closes the source."""
+        out: queue.Queue = queue.Queue(maxsize=8)
+        stop = threading.Event()
+        END = object()
+
+        def job():
+            gen = None
+            try:
+                gen = gen_factory()
+                for item in gen:
+                    if stop.is_set():
+                        break
+                    out.put(("item", item))
+                out.put((END, None))
+            except BaseException as e:
+                out.put(("error", e))
+            finally:
+                if gen is not None:
+                    try:
+                        gen.close()
+                    except Exception:
+                        pass
+        self._q.put(job)
+        try:
+            while True:
+                kind, val = out.get()
+                if kind == "item":
+                    yield val
+                elif kind == "error":
+                    raise val
+                else:
+                    return
+        finally:
+            stop.set()
+            try:                         # unblock a producer waiting on a full queue
+                while True:
+                    out.get_nowait()
+            except queue.Empty:
+                pass
+
+
 class State:
     def __init__(self, cfg: Config, loader=None, library: Library | None = None,
                  trainer: Trainer | None = None, spawn=None, delta_fn=None):
         self.cfg = cfg
         self.lock = threading.RLock()
+        self.worker = MLXWorker()
         self.backend: Any = None
         self.active: str | None = None
         self.adapter: str | None = None
@@ -76,12 +159,16 @@ class State:
     def unload(self) -> None:
         with self.lock:
             self.backend, self.active, self.adapter = None, None, None
-            gc.collect()
-            try:
-                import mlx.core as mx
-                (getattr(mx, "clear_cache", None) or mx.metal.clear_cache)()
-            except Exception:
-                pass
+            self.worker.call(self._clear_cache)
+
+    @staticmethod
+    def _clear_cache() -> None:
+        gc.collect()
+        try:
+            import mlx.core as mx
+            (getattr(mx, "clear_cache", None) or mx.metal.clear_cache)()
+        except Exception:
+            pass
 
     def select(self, name: str, adapter: str | None = None) -> None:
         if name not in self.model_names():
@@ -95,7 +182,7 @@ class State:
             self.loading = name
             try:
                 self.unload()
-                self.backend = self._load(name, adapter_dir)
+                self.backend = self.worker.call(self._load, name, adapter_dir)
                 self.active, self.adapter = name, adapter
             finally:
                 self.loading = None
@@ -228,7 +315,7 @@ def make_handler(state: State):
                 self._guard(lambda: self._json({"adapters": state.trainer.adapters()}))
             elif p == "/api/train/delta":
                 aid = (q.get("adapter") or [""])[0]
-                self._guard(lambda: self._json(state.delta_fn(state.trainer.adapter_dir(aid))))
+                self._guard(lambda: self._json(state.worker.call(state.delta_fn, state.trainer.adapter_dir(aid))))
             elif p == "/v1/models":
                 self._json({"object": "list", "data": [{"id": n, "object": "model"} for n in state.model_names()]})
             else:
@@ -318,8 +405,8 @@ def make_handler(state: State):
 
             with state.lock:
                 if not body.get("stream"):
-                    text = "".join(c["text"] for c in backend.stream_chat(
-                        messages, max_tokens=max_tokens, temperature=temperature))
+                    text = "".join(c["text"] for c in state.worker.stream(lambda: backend.stream_chat(
+                        messages, max_tokens=max_tokens, temperature=temperature)))
                     return self._json({"id": cid, "object": "chat.completion", "model": state.active,
                                        "choices": [{"index": 0, "finish_reason": "stop",
                                                     "message": {"role": "assistant", "content": text}}]})
@@ -329,7 +416,8 @@ def make_handler(state: State):
                 self.end_headers()
                 try:
                     self.wfile.write(chunk({"role": "assistant"}))
-                    gen = backend.stream_chat(messages, max_tokens=max_tokens, temperature=temperature)
+                    gen = state.worker.stream(lambda: backend.stream_chat(
+                        messages, max_tokens=max_tokens, temperature=temperature))
                     try:
                         for c in gen:
                             extra = {"energy": c.get("energy"), "tps": c.get("tps"), "simulated": simulated}
