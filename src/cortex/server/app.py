@@ -183,10 +183,13 @@ class State:
             if self.active == name and self.adapter == adapter and self.backend is not None:
                 return
             self.loading = name
+            print(f"[cortex] 正在加载 {name} …", file=sys.stderr, flush=True)
             try:
                 self.unload()
                 self.backend = self.worker.call(self._load, name, adapter_dir)
                 self.active, self.adapter = name, adapter
+                print(f"[cortex] 已加载 {name}，层数 {getattr(self.backend, 'num_layers', None)}",
+                      file=sys.stderr, flush=True)
             finally:
                 self.loading = None
 
@@ -419,15 +422,20 @@ def make_handler(state: State):
                 self.end_headers()
                 try:
                     self.wfile.write(chunk({"role": "assistant"}))
+                    seen_energy = 0
                     gen = state.worker.stream(lambda: backend.stream_chat(
                         messages, max_tokens=max_tokens, temperature=temperature))
                     try:
                         for c in gen:
                             extra = {"energy": c.get("energy"), "tps": c.get("tps"), "simulated": simulated}
+                            seen_energy += 1 if c.get("energy") else 0
                             self.wfile.write(chunk({"content": c["text"]}, extra))
                             self.wfile.flush()
                     finally:
                         gen.close()
+                        if not simulated and seen_energy == 0:
+                            print(f"[cortex] 警告：模型 {state.active} 本次回复没有产生逐层信号（探针层数="
+                                  f"{getattr(backend, 'num_layers', None)}）", file=sys.stderr, flush=True)
                     self.wfile.write(chunk({}, finish="stop"))
                     self.wfile.write(b"data: [DONE]\n\n")
                 except (BrokenPipeError, ConnectionResetError):
