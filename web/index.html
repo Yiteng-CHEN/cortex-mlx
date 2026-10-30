@@ -172,6 +172,7 @@ function pushEnergy(arr,simulated){    // 一个 token 的逐层活动 → 归�
     const own=(v-lo[l])/(hi[l]-lo[l]+1e-6),rel=(v-mn)/span;                    // 相对自己 / 相对这一步里别的层
     const e=Math.pow(clamp(.45*own+.55*rel,0,1),2);                           // 平方：只让真正突出的层亮起来
     act[l]=Math.max(act[l],e)}
+  emitWave(1,.7)   // 每个 token：一圈信号从中心向外传导
 }
 function resetLayers(n){NL=n;act=new Float32Array(NL);lo=new Float32Array(NL).fill(1e9);hi=new Float32Array(NL).fill(-1e9);
   dW=[...Array(NL)].map(()=>MATS.map(()=>new Float32Array(144)));dMax=1e-6;deltaReal=false;synth();$('nlayers').textContent=NL;buildNet();buildHolo()}
@@ -208,20 +209,23 @@ function arcLines(rad,start,span,n,color,op){const a=[];for(let i=0;i<n;i++){con
 function dashedRing(rad,dashes,color,op){return arcLines(rad,0,6.2832,dashes,color,op)}
 function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。每层 = 球面上的一圈碎片（层数与模型真实层数一致）
   if(holo)rig.remove(holo);
-  holo=new THREE.Group();rig.add(holo);PER=NL>48?30:36;
+  holo=new THREE.Group();rig.add(holo);PER=NL>48?44:60;
   const r=rng(21),N=NL*PER,hybrid=PAT.indexOf('L')>=0,band=2.1/Math.max(1,NL-1);
   const P=new Float32Array(N*3),C=new Float32Array(N*3),FP=new Float32Array(N*6),FC=new Float32Array(N*6);
-  const lay=new Uint8Array(N),typ=new Uint8Array(N),jit=new Float32Array(N),a0=new Float32Array(N),rad=new Float32Array(N),yo=new Float32Array(N),len=new Float32Array(N);
+  const lay=new Uint8Array(N),typ=new Uint8Array(N),jit=new Float32Array(N),a0=new Float32Array(N),rad=new Float32Array(N),yo=new Float32Array(N),len=new Float32Array(N),rho=new Float32Array(N);
   for(let l=0;l<NL;l++){const rb=Rs(l,NL)*(1+.05*Math.sin(l*1.7))*((hybrid&&PAT[l]==='L')?.94:1);
-    for(let j=0;j<PER;j++){const i=l*PER+j,q=r();lay[i]=l;jit[i]=r();a0[i]=6.2832*(j+r()*.9)/PER+l*.11;rad[i]=rb*(.9+.2*r());yo[i]=(r()-.5)*band*1.7;
-      typ[i]=q<.66?0:q<.88?1:2;len[i]=.025+.13*r()*r()}}
+    for(let j=0;j<PER;j++){const i=l*PER+j,q=r();lay[i]=l;jit[i]=r();a0[i]=6.2832*(j+r()*.9)/PER+l*.11;
+      rho[i]=r()<.2?.93+.1*r():Math.pow(r(),1.7)*.92;           // 约 20% 在外壳勾出球形轮廓，其余越靠中心越密
+      rad[i]=rb*rho[i];yo[i]=(r()-.5)*band*1.7;typ[i]=q<.66?0:q<.88?1:2;len[i]=.02+.11*r()*r()*(.45+rho[i])}}
   const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(P,3));pg.setAttribute('color',new THREE.BufferAttribute(C,3));
   holo.add(new THREE.Points(pg,new THREE.PointsMaterial({size:.045,vertexColors:true,transparent:true,blending:ADD,depthWrite:false,sizeAttenuation:true})));
   const fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.BufferAttribute(FP,3));fg.setAttribute('color',new THREE.BufferAttribute(FC,3));
   holo.add(new THREE.LineSegments(fg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
   // 层间连线：稀疏的斜线，相邻两层同时活跃时发亮
-  const A=[],B=[];const id=(l,j)=>l*PER+((j%PER)+PER)%PER;
-  for(let l=0;l<NL-1;l++)for(let j=0;j<PER;j+=4){A.push(id(l,j));B.push(id(l+1,j+(l%3)))}
+  const A=[],B=[];
+  const inner=l=>{const a=[];for(let j=0;j<PER;j++){const i=l*PER+j;if(rho[i]<.62)a.push(i)}return a};
+  for(let l=0;l<NL-1;l++){const u=inner(l),v=inner(l+1);if(!u.length||!v.length)continue;
+    for(let k=0;k<u.length;k+=2){const i=u[k];let bi=v[0],bd=1e9;for(const w of v){let d=Math.abs(a0[w]-a0[i]);d=Math.min(d,6.2832-d);d+=Math.abs(rho[w]-rho[i])*2;if(d<bd){bd=d;bi=w}}A.push(i);B.push(bi)}}
   const S=A.length,LP=new Float32Array(S*6),LC=new Float32Array(S*6);
   const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(LP,3));lg.setAttribute('color',new THREE.BufferAttribute(LC,3));
   holo.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
@@ -237,40 +241,75 @@ function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。�
   const coreDot=new THREE.Points(cdg,new THREE.PointsMaterial({size:.22,color:0xffc860,transparent:true,opacity:.5,blending:ADD,depthWrite:false}));holo.add(coreDot);
   // 悬浮微粒
   const D=380,DP=new Float32Array(D*3),DC=new Float32Array(D*3);
-  for(let i=0;i<D;i++){const a=r()*6.2832,b=Math.acos(2*r()-1),q=.7+.9*r();DP[i*3]=Math.sin(b)*Math.cos(a)*q;DP[i*3+1]=Math.cos(b)*q;DP[i*3+2]=Math.sin(b)*Math.sin(a)*q;const k=.15+.35*r();DC[i*3]=k;DC[i*3+1]=k*.55;DC[i*3+2]=k*.12}
+  for(let i=0;i<D;i++){const a=r()*6.2832,b=Math.acos(2*r()-1),q=.7+.9*r();DP[i*3]=Math.sin(b)*Math.cos(a)*q;DP[i*3+1]=Math.cos(b)*q;DP[i*3+2]=Math.sin(b)*Math.sin(a)*q;const k=.15+.35*r();DC[i*3]=k*.2;DC[i*3+1]=k*.8;DC[i*3+2]=k*.95}
   const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(DP,3));dg.setAttribute('color',new THREE.BufferAttribute(DC,3));
   holo.add(new THREE.Points(dg,new THREE.PointsMaterial({size:.018,vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
   // 卫星 + 扫描环
   const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9),3));
-  holo.add(new THREE.Points(sg,new THREE.PointsMaterial({size:.09,color:0xfff0c0,transparent:true,blending:ADD,depthWrite:false})));
+  const sats=new THREE.Points(sg,new THREE.PointsMaterial({size:.09,color:0xbff6ff,transparent:true,blending:ADD,depthWrite:false}));holo.add(sats);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(1.0,.005,6,120),new THREE.MeshBasicMaterial({color:0xffe9a8,transparent:true,opacity:.5,blending:ADD,depthWrite:false}));
   ring.rotation.x=Math.PI/2;holo.add(ring);
-  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,S,N,pg,fg,lg,arcs,cores,coreDot,sg,ring,hubs};
+  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,pg,fg,lg,arcs,cores,coreDot,sg,sats,ring,hubs};
 }
 let rotY=.5,rotX=.16,vy=.002,drag=false,px0=0,py0=0;
+// ---- 球体 = 电脑硬件占用：占用越高，激活的区域越多越亮；休眠时是青蓝色，活跃区域是暗金色
+const WAVES=[];let nextAmb=0,ambDir=1;
+function emitWave(dir,amp,t0){const now=t0==null?performance.now():t0;if(WAVES.length&&now-WAVES[WAVES.length-1].t0<180&&WAVES[WAVES.length-1].dir===dir)return;WAVES.push({t0:now,dir,amp,dur:1900});if(WAVES.length>8)WAVES.shift()}
+let HW={gpu:null,mem:null,gb:null,tot:null,model:null},uS=0;
+async function pollHw(){if(!LIVE)return;try{const j=await api('/api/hw');HW={gpu:j.gpu,mem:j.mem_pct,gb:j.mem_used_gb,tot:j.mem_total_gb,model:j.model_gb}}catch(_){}}
+setInterval(pollHw,1000);
+function hwLevel(mean){
+  if(LIVE&&(HW.gpu!=null||HW.mem!=null)){const g=HW.gpu!=null?HW.gpu:(busy?.7:0),m=HW.mem!=null?HW.mem*.8:0;return clamp(Math.max(g,m)+.15*mean,0,1)}
+  return clamp(.1+1.2*mean,0,1)   // 演示模式或读不到硬件：用模型自己的活动代替
+}
+const BL=[...Array(8)].map((_,k)=>({lon:k*.8,lat:Math.sin(k*2.1)*.6,tl:0,next:0,ph:k*1.7,sp:(.00006+.00004*((k*5)%4))*(k%2?1:-1)}));
+function pickLat(maxA,tot){ // 有层在活动：按各层活跃度挑一层，让亮区跟着它走；否则随机游走
+  if(tot>.15&&Math.random()<Math.min(.9,maxA*1.6)){let r=Math.random()*tot,l=0;for(;l<NL-1;l++){r-=act[l];if(r<=0)break}return clamp(Yl(l,NL)/1.14,-.95,.95)}
+  return(Math.random()*2-1)*.9}
+const CY=[.31,.85,.96],GD=[1,.68,.22],lerp3=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
+const DGOLD=[[.22,.12,.02],[.6,.36,.05],[.92,.58,.12],[1,.74,.3]];   // 暗金色，不会变成白色
+function dgold(e,o,k){e=clamp(e,0,1)*3;const i=Math.min(2,e|0),f=e-i,a=DGOLD[i],b=DGOLD[i+1];o[0]=(a[0]+(b[0]-a[0])*f)*k;o[1]=(a[1]+(b[1]-a[1])*f)*k;o[2]=(a[2]+(b[2]-a[2])*f)*k}
 function updateHolo(t){
-  const {P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,S,N}=H,fl=.92+.08*Math.sin(t*.012)*Math.sin(t*.0047),sec=t*.0005,col=[0,0,0];
-  const cs=new Float32Array(NL),sn=new Float32Array(NL);let mean=0;
-  for(let l=0;l<NL;l++){const th=(l%2?1:-1)*sec*(.1+.09*((l*7)%5)/4);cs[l]=Math.cos(th);sn[l]=Math.sin(th);mean+=act[l]}mean/=NL;
+  const {P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,S,N}=H,fl=.92+.08*Math.sin(t*.012)*Math.sin(t*.0047),sec=t*.0005,col=[0,0,0],dt=Math.min(100,Math.max(0,t-(H.t0||t)));H.t0=t;
+  const cs=new Float32Array(NL),sn=new Float32Array(NL),mL=new Float32Array(NL);let mean=0,maxA=0;
+  for(let l=0;l<NL;l++){const th=(l%2?1:-1)*sec*(.1+.09*((l*7)%5)/4);cs[l]=Math.cos(th);sn[l]=Math.sin(th);mean+=act[l];maxA=Math.max(maxA,act[l])}mean/=NL;
+  uS+=(hwLevel(mean)-uS)*(1-Math.pow(.5,dt/700));            // 平滑：占用变化时球体缓缓过渡
+  // 亮区：数量随占用增加；每个亮区有自己的呼吸节奏，并缓慢漂移，纬度会被活跃的层吸引
+  let tot=0;for(let l=0;l<NL;l++)tot+=act[l];
+  if(t>nextAmb){emitWave(ambDir,.3+.5*uS,t);ambDir=-ambDir;nextAmb=t+3300}     // 休眠时的呼吸：一次向外、一次向内
+  for(let k=WAVES.length-1;k>=0;k--)if(t-WAVES[k].t0>WAVES[k].dur)WAVES.splice(k,1);
+  const wv=WAVES.map(w=>{const a=(t-w.t0)/w.dur;return[w.dir>0?a*1.08:1.08-a*1.08,w.amp*Math.pow(Math.sin(Math.PI*clamp(a,0,1)),.6)]});
+  const Kf=1+uS*7,sig2=.09+.16*uS,br=.88+.12*Math.sin(t*.0011),amp=1.5*sstep(0,.5,uS),cen=[];
+  BL.forEach((b,k)=>{if(t>b.next){b.tl=pickLat(maxA,tot);b.next=t+1400+Math.random()*2200}
+    b.lat+=(b.tl-b.lat)*(1-Math.pow(.5,dt/600));b.lon+=b.sp*dt;const cp=Math.sqrt(Math.max(0,1-b.lat*b.lat));
+    cen.push([cp*Math.cos(b.lon),b.lat,cp*Math.sin(b.lon),clamp(Kf-k,0,1)*(.55+.45*Math.sin(t*.0007*(.8+.12*k)+b.ph))])});
   for(let i=0;i<N;i++){const l=lay[i],ca=Math.cos(a0[i]),sa=Math.sin(a0[i]),ux=ca*cs[l]-sa*sn[l],uz=sa*cs[l]+ca*sn[l],R=rad[i],y=Yl(l,NL)+yo[i];
-    const x=ux*R,z=uz*R,e=act[l]*(.55+.8*jit[i]);P[i*3]=x;P[i*3+1]=y;P[i*3+2]=z;
-    const L=len[i]*(1+.7*act[l]),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
+    const x=ux*R,z=uz*R;P[i*3]=x;P[i*3+1]=y;P[i*3+2]=z;
+    const px=x/1.1,py=y/1.1,pz=z/1.1,rr=Math.sqrt(px*px+py*py+pz*pz);let field=0,wave=0;
+    for(let k=0;k<8;k++){const c=cen[k];if(c[3]<=0)continue;const d2=(px-c[0]*.72)**2+(py-c[1]*.72)**2+(pz-c[2]*.72)**2;field+=c[3]*Math.exp(-d2/sig2)}
+    for(const w of wv){const q=(rr-w[0])/.14;if(q<2.5&&q>-2.5)wave+=w[1]*Math.exp(-q*q)}
+    const m=clamp(field*amp*br*(.7+.6*jit[i])+act[l]*(.35+.65*uS)*.8+wave*(.12+.6*uS),0,1);mL[l]+=m/PER;
+    const L=len[i]*(1+.6*m+.7*wave),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
     FP[i*6]=x;FP[i*6+1]=y;FP[i*6+2]=z;FP[i*6+3]=x+dx*L;FP[i*6+4]=y+dy*L;FP[i*6+5]=z+dz*L;
-    const em=Math.min(1,.2+.18*jit[i]+e*e*1.5+.05*Math.sin(t*.0012+jit[i]*40)); // 未激活的碎片保持暗金色，激活的才会变亮变白
-    gold(em,col,fl*(.35+.65*em));C[i*3]=col[0];C[i*3+1]=col[1];C[i*3+2]=col[2];
-    FC[i*6]=col[0];FC[i*6+1]=col[1];FC[i*6+2]=col[2];FC[i*6+3]=col[0]*.35;FC[i*6+4]=col[1]*.35;FC[i*6+5]=col[2]*.35}
-  for(let k=0;k<S;k++){const a=A[k],b=B[k],s=Math.sqrt(act[lay[a]]*act[lay[b]]);
+    const bb=.2+.5*jit[i],mm=sstep(.08,.5,m);dgold(m,col,fl*(.4+.6*m));
+    const cb=bb*fl*(1+1.7*wave),r=(.1*cb)*(1-mm)+col[0]*mm,g=(.75*cb)*(1-mm)+col[1]*mm,bl=(.95*cb)*(1-mm)+col[2]*mm;
+    C[i*3]=r;C[i*3+1]=g;C[i*3+2]=bl;FC[i*6]=r;FC[i*6+1]=g;FC[i*6+2]=bl;FC[i*6+3]=r*.35;FC[i*6+4]=g*.35;FC[i*6+5]=bl*.35}
+  for(let k=0;k<S;k++){const a=A[k],b=B[k],s=Math.sqrt(mL[lay[a]]*mL[lay[b]]);
     LP[k*6]=P[a*3];LP[k*6+1]=P[a*3+1];LP[k*6+2]=P[a*3+2];LP[k*6+3]=P[b*3];LP[k*6+4]=P[b*3+1];LP[k*6+5]=P[b*3+2];
-    const m=s*s*1.6;gold(.12+.88*Math.min(1,m*1.2),col,fl*(.08+.92*Math.min(1,m)));
-    LC[k*6]=col[0];LC[k*6+1]=col[1];LC[k*6+2]=col[2];LC[k*6+3]=col[0];LC[k*6+4]=col[1];LC[k*6+5]=col[2]}
+    const mm=sstep(.05,.4,s),base=.16;dgold(.3+.7*s,col,fl*(.3+.7*s));
+    const r=(.05*base*(1-mm)+col[0]*mm)*fl,g=(.5*base*(1-mm)+col[1]*mm)*fl,bl=(.65*base*(1-mm)+col[2]*mm)*fl;
+    LC[k*6]=r;LC[k*6+1]=g;LC[k*6+2]=bl;LC[k*6+3]=r;LC[k*6+4]=g;LC[k*6+5]=bl}
   for(const g of [H.pg,H.fg,H.lg]){g.attributes.position.needsUpdate=true;g.attributes.color.needsUpdate=true}
-  H.arcs.forEach((a,i)=>{a.ln.rotation.y=sec*a.spd*2.2+i});
-  H.cores.forEach((m,i)=>{m.rotation.y=sec*(.8+.4*i)*(i%2?-1:1);m.rotation.x+=0;m.material.opacity=.35+.5*Math.min(1,mean*2.5)});
-  H.coreDot.material.opacity=.3+.6*Math.min(1,mean*3);H.coreDot.material.size=.18+.22*Math.min(1,mean*3);
+  // 轨道环 / 核心 / 光环：休眠时青蓝，占用高时偏暗金
+  const kk=sstep(.08,.75,uS),tc=lerp3(CY,GD,kk);
+  H.arcs.forEach((a,i)=>{a.ln.rotation.y=sec*a.spd*2.2+i;if(i<4)a.ln.material.color.setRGB(tc[0],tc[1],tc[2]);a.ln.material.opacity=(i<4?.35+.4*uS:.3)});
+  H.cores.forEach((m,i)=>{m.rotation.y=sec*(.8+.4*i)*(i%2?-1:1);m.material.color.setRGB(tc[0],tc[1],tc[2]);m.material.opacity=.3+.55*Math.min(1,uS*1.4)});
+  H.coreDot.material.color.setRGB(tc[0],tc[1],tc[2]);H.coreDot.material.opacity=.25+.55*Math.min(1,uS*1.5)*br;H.coreDot.material.size=.16+.24*Math.min(1,uS*1.5);
+  H.sats.material.color.setRGB(.75+.2*kk,.96-.2*kk,1-.5*kk);H.ring.material.color.setRGB(tc[0],tc[1],tc[2]);
   const sa=H.sg.attributes.position.array;for(let k=0;k<3;k++){const q=sec*(1.4+.5*k)+k*2.1,rr=1.28+.14*k;
     sa[k*3]=Math.cos(q)*rr;sa[k*3+1]=Math.sin(q*1.3+k)*.6*(1+k*.3);sa[k*3+2]=Math.sin(q)*rr}H.sg.attributes.position.needsUpdate=true;
-  H.hubs.forEach((h,i)=>{h.rotation.y=sec*.4*(i%2?1:-1)});
-  H.ring.position.y=Math.sin(t*.0003)*1.05;H.ring.material.opacity=.15+.4*Math.cos(t*.0003)**2;
+  H.hubs.forEach((h,i)=>{h.rotation.y=sec*.4*(i%2?1:-1);h.material.color.setRGB(tc[0],tc[1],tc[2])});
+  H.ring.position.y=Math.sin(t*.0003)*1.05;H.ring.material.opacity=.12+.3*Math.cos(t*.0003)**2;
 }
 // 刻度尺与层号（2D 叠加层）：随模型真实层数变化，每 5 层一个标签
 const _v=THREE.Vector3?new THREE.Vector3():null;
@@ -285,6 +324,8 @@ function drawHud(){
     hx.strokeStyle=hot?'#ffd36a':'rgba(111,200,226,.55)';hx.lineWidth=1;hx.beginPath();hx.moveTo(xr-(major?12:6),y);hx.lineTo(xr,y);hx.stroke();
     if(major){hx.fillStyle=hot?'#ffd36a':'#8fd6ea';hx.textAlign='right';hx.fillText('L'+l+(PAT[l]==='A'&&PAT.indexOf('L')>=0?' ◆':''),xr-16,y)}}
   hx.fillStyle='#6fa8bd';hx.textAlign='left';hx.fillText(NL+' 层',xr-12,h*.5-(h*.42));
+  const hwt=(LIVE&&(HW.gpu!=null||HW.mem!=null))?`显卡 ${HW.gpu!=null?Math.round(HW.gpu*100)+'%':'—'} · 内存 ${HW.gb!=null?HW.gb+'/'+HW.tot+' GB':'—'}${HW.model?' · 模型 '+HW.model+' GB':''}`:(LIVE?'硬件占用：读取中…':'硬件占用：模拟');
+  hx.textAlign='left';hx.fillStyle='#8fd6ea';hx.fillText('球体 = '+hwt,12,h-12);
 }
 function resizeGL(){const s=cv.parentElement,w=s.clientWidth,h=s.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resizeGL).observe(cv.parentElement);

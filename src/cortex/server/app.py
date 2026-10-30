@@ -28,6 +28,7 @@ from .chat import DemoChat
 from .library import Library
 from . import websearch
 from .search import SearchError, Searcher
+from .hardware import Hardware
 from .training import Datasets, Trainer, adapter_delta
 
 WEB_DIR = PROJECT_ROOT / "web"
@@ -136,8 +137,15 @@ class State:
         self.trainer = trainer or Trainer(cfg.data_dir, self.datasets, spawn)
         self.delta_fn = delta_fn or adapter_delta
         self.dumps: dict[str, dict] = {}
+        self.hardware = Hardware(active_model_bytes=self._mlx_active_bytes)
         self.search_fetch = None                      # tests inject a fake fetcher
         self._search_file = cfg.data_dir / "search.json"
+
+    def _mlx_active_bytes(self):
+        if self.backend is None or getattr(self.backend, "simulated", False) or self._custom_loader:
+            return None
+        from ..backends import mlxutil
+        return mlxutil.active_memory_bytes()
 
     # ---- web search (opt-in per request)
     def search_config(self) -> dict:
@@ -351,6 +359,8 @@ def make_handler(state: State):
                     self._json({"error": "no weight sample"}, 404)
             elif p == "/api/search":
                 self._guard(lambda: self._json(state.search_config()))
+            elif p == "/api/hw":
+                self._guard(lambda: self._json(state.hardware.sample()))
             elif p == "/api/train/datasets":
                 self._guard(lambda: self._json({"datasets": state.datasets.list()}))
             elif p == "/api/train/status":

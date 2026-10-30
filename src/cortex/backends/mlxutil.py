@@ -24,6 +24,11 @@ def peak_memory_gb() -> float | None:
     return round(fn() / 1e9, 2) if fn else None
 
 
+def active_memory_bytes() -> int | None:
+    fn = _fn("get_active_memory")
+    return int(fn()) if fn else None
+
+
 def reset_peak_memory() -> None:
     fn = _fn("reset_peak_memory")
     if fn:
