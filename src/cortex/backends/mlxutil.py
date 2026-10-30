@@ -64,15 +64,23 @@ def find_layers(model):
 
 
 def find_layer_container(model):
-    """The actual mutable list of transformer blocks (find_layers returns a copy)."""
-    for path in ("layers", "model.layers", "language_model.model.layers", "language_model.layers",
-                 "model.language_model.layers"):
+    """The actual mutable list of transformer blocks the forward pass iterates.
+
+    mlx-lm models often expose `layers` as a property that returns a fresh slice
+    (e.g. `pipeline_layers`), so wrapping that copy would never be seen by the forward pass.
+    Only a list that comes back as the *same object* on every access is the stored one.
+    """
+    for path in ("language_model.model.layers", "model.language_model.layers", "model.layers",
+                 "language_model.layers", "layers"):
         obj = model
         try:
             for part in path.split("."):
                 obj = getattr(obj, part)
+            again = model
+            for part in path.split("."):
+                again = getattr(again, part)
         except AttributeError:
             continue
-        if isinstance(obj, list) and obj:
+        if isinstance(obj, list) and obj and obj is again:
             return obj
-    raise AttributeError("could not locate a mutable list of transformer layers")
+    raise AttributeError("could not locate the stored list of transformer layers")

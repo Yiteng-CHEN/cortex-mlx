@@ -70,3 +70,29 @@ class TestProbeNewFormat(unittest.TestCase):
         r = parse_lora_output("RuntimeError: [METAL] Insufficient Memory\nCORTEX_PEAK_GB=95.10\n")
         self.assertIsNone(r["seconds_per_step"])
         self.assertEqual(r["peak_memory_gb"], 95.1)
+
+
+class TestLayerContainer(unittest.TestCase):
+    def test_skips_property_that_returns_a_copy(self):
+        from cortex.backends.mlxutil import find_layer_container
+
+        class Inner:
+            def __init__(self):
+                self.layers = ["a", "b", "c"]
+
+            @property
+            def pipeline_layers(self):
+                return self.layers[0:3]          # fresh slice each time, like mlx-lm
+
+        class Top:
+            def __init__(self):
+                self.language_model = type("L", (), {})()
+                self.language_model.model = Inner()
+
+            @property
+            def layers(self):
+                return self.language_model.model.pipeline_layers
+
+        top = Top()
+        got = find_layer_container(top)
+        self.assertIs(got, top.language_model.model.layers)
