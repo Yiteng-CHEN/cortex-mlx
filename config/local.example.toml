@@ -1,0 +1,13 @@
+# Copy to config/local.toml (git-ignored) and edit.
+# Each repo used for mining eval tasks needs a test command; {tests} is replaced with the
+# space-separated test files of the task, {python} with the Python running Cortex.
+
+# [paths]
+# data_dir = "~/Library/Application Support/Cortex"
+
+# [repos.myapp]
+# path = "~/code/myapp"
+# setup = "uv sync --quiet"                 # optional, runs once per worktree
+# test = "uv run pytest -q {tests}"
+# timeout_s = 300                           # optional, overrides [eval] timeout_s
+# env = { DJANGO_SETTINGS_MODULE = "app.settings" }   # optional, extra env for commands
