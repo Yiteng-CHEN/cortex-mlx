@@ -229,8 +229,6 @@ function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。�
   const S=A.length,LP=new Float32Array(S*6),LC=new Float32Array(S*6);
   const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(LP,3));lg.setAttribute('color',new THREE.BufferAttribute(LC,3));
   holo.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
-  // 混合架构：全注意力层再加一圈亮环
-  const hubs=[];if(hybrid)for(let l=0;l<NL;l++)if(PAT[l]==='A'){const h=dashedRing(Rs(l,NL)*1.04,80,0xffd36a,.5);h.position.y=Yl(l,NL);holo.add(h);hubs.push(h)}
   // 核心：几圈相互倾斜的金环 + 亮点
   const cores=[];[[.2,.4,0],[.3,1.2,.6],[.4,-.7,1.1]].forEach(([rr,rx,rz],k)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(rr,.005,6,90),new THREE.MeshBasicMaterial({color:0xffd070,transparent:true,opacity:.7,blending:ADD,depthWrite:false}));
     m.rotation.set(rx,0,rz);holo.add(m);cores.push(m)});
@@ -242,7 +240,7 @@ function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。�
   const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(DP,3));dg.setAttribute('color',new THREE.BufferAttribute(DC,3));
   holo.add(new THREE.Points(dg,new THREE.PointsMaterial({size:.018,vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
   // 卫星 + 扫描环
-  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,pg,fg,lg,cores,coreDot,hubs};
+  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,pg,fg,lg,cores,coreDot};
 }
 let rotY=.5,rotX=.16,vy=.002,drag=false,px0=0,py0=0;
 // ---- 球体 = 电脑硬件占用：占用越高，激活的区域越多越亮；休眠时是青蓝色，活跃区域是暗金色
@@ -298,7 +296,6 @@ function updateHolo(t){
   H.cores.forEach((m,i)=>{m.rotation.y=sec*(.8+.4*i)*(i%2?-1:1);m.material.color.setRGB(tc[0],tc[1],tc[2]);m.material.opacity=.3+.55*Math.min(1,uS*1.4)});
   H.coreDot.material.color.setRGB(tc[0],tc[1],tc[2]);H.coreDot.material.opacity=.25+.55*Math.min(1,uS*1.5)*br;H.coreDot.material.size=.16+.24*Math.min(1,uS*1.5);
   
-  H.hubs.forEach((h,i)=>{h.rotation.y=sec*.4*(i%2?1:-1);h.material.color.setRGB(tc[0],tc[1],tc[2])});
 }
 // 刻度尺与层号（2D 叠加层）：随模型真实层数变化，每 5 层一个标签
 const _v=THREE.Vector3?new THREE.Vector3():null;
