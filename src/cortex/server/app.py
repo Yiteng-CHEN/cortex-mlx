@@ -15,6 +15,7 @@ import json
 import subprocess
 import sys
 import queue
+import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +26,8 @@ from urllib.parse import parse_qs, urlparse
 from ..config import PROJECT_ROOT, Config, hf_cache_dir
 from .chat import DemoChat
 from .library import Library
+from . import websearch
+from .search import SearchError, Searcher
 from .training import Datasets, Trainer, adapter_delta
 
 WEB_DIR = PROJECT_ROOT / "web"
@@ -133,6 +136,32 @@ class State:
         self.trainer = trainer or Trainer(cfg.data_dir, self.datasets, spawn)
         self.delta_fn = delta_fn or adapter_delta
         self.dumps: dict[str, dict] = {}
+        self.search_fetch = None                      # tests inject a fake fetcher
+        self._search_file = cfg.data_dir / "search.json"
+
+    # ---- web search (opt-in per request)
+    def search_config(self) -> dict:
+        try:
+            j = json.loads(self._search_file.read_text())
+        except (OSError, ValueError):
+            j = {}
+        prov = j.get("provider") if j.get("provider") in ("duckduckgo", "searxng") else "duckduckgo"
+        return {"provider": prov, "searxng_url": str(j.get("searxng_url", ""))}
+
+    def set_search_config(self, provider: str, searxng_url: str) -> dict:
+        if provider not in ("duckduckgo", "searxng"):
+            raise ValueError("未知的搜索来源")
+        url = searxng_url.strip()
+        if url and not re.match(r"^https?://[^\s]+$", url):
+            raise ValueError("SearXNG 地址要以 http:// 或 https:// 开头")
+        self._search_file.parent.mkdir(parents=True, exist_ok=True)
+        self._search_file.write_text(json.dumps({"provider": provider, "searxng_url": url}))
+        return self.search_config()
+
+    def searcher(self) -> Searcher:
+        c = self.search_config()
+        kw = {"fetch": self.search_fetch} if self.search_fetch else {}
+        return Searcher(c["provider"], c["searxng_url"], **kw)
 
     # ---- models
     def model_names(self) -> list[str]:
@@ -266,6 +295,13 @@ def make_handler(state: State):
                 raise ValueError("body too large")
             return json.loads(self.rfile.read(n) or b"{}")
 
+        def _search_test(self, q: str) -> dict:
+            try:
+                res = state.searcher().search(q or "Apple Silicon MLX", 3)
+            except SearchError as e:
+                return {"ok": False, "error": str(e)}
+            return {"ok": True, "results": res}
+
         def _guard(self, fn):
             try:
                 return fn()
@@ -313,6 +349,8 @@ def make_handler(state: State):
                     self.wfile.write(data)
                 else:
                     self._json({"error": "no weight sample"}, 404)
+            elif p == "/api/search":
+                self._guard(lambda: self._json(state.search_config()))
             elif p == "/api/train/datasets":
                 self._guard(lambda: self._json({"datasets": state.datasets.list()}))
             elif p == "/api/train/status":
@@ -346,6 +384,9 @@ def make_handler(state: State):
                 "/api/library/download": lambda: self._json(self._download(str(body.get("key", "")))),
                 "/api/library/cancel": lambda: (lib.cancel(str(body.get("key", ""))), self._json({"ok": True})),
                 "/api/library/delete": lambda: self._json({"freed": self._delete(str(body.get("key", "")))}),
+                "/api/search": lambda: self._json(state.set_search_config(
+                    str(body.get("provider", "duckduckgo")), str(body.get("searxng_url", "")))),
+                "/api/search/test": lambda: self._json(self._search_test(str(body.get("q", "")))),
                 "/api/library/weights": lambda: self._json(state.dump_weights(str(body.get("key", "")))),
                 "/api/train/dataset": lambda: self._json(state.datasets.create(str(body.get("name", "")), body.get("files") or [])),
                 "/api/train/start": lambda: self._json(self._train(body)),
@@ -409,13 +450,29 @@ def make_handler(state: State):
                     obj["cortex"] = extra
                 return b"data: " + json.dumps(obj, ensure_ascii=False).encode() + b"\n\n"
 
+            use_web = bool(body.get("web")) and not simulated
+
+            def chat(msgs):
+                return state.worker.stream(lambda: backend.stream_chat(
+                    msgs, max_tokens=max_tokens, temperature=temperature))
+
+            def events():
+                if use_web:
+                    yield from websearch.run(chat, messages, state.searcher())
+                else:
+                    for c in chat(messages):
+                        yield {"type": "text", "text": c["text"], "energy": c.get("energy"), "tps": c.get("tps")}
+
             with state.lock:
                 if not body.get("stream"):
-                    text = "".join(c["text"] for c in state.worker.stream(lambda: backend.stream_chat(
-                        messages, max_tokens=max_tokens, temperature=temperature)))
+                    ev = list(events())
+                    text = "".join(e["text"] for e in ev if e["type"] == "text")
+                    msg = {"role": "assistant", "content": text}
+                    src = next((e["items"] for e in ev if e["type"] == "sources"), None)
+                    if src:
+                        msg["sources"] = src
                     return self._json({"id": cid, "object": "chat.completion", "model": state.active,
-                                       "choices": [{"index": 0, "finish_reason": "stop",
-                                                    "message": {"role": "assistant", "content": text}}]})
+                                       "choices": [{"index": 0, "finish_reason": "stop", "message": msg}]})
                 self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-store")
@@ -423,13 +480,17 @@ def make_handler(state: State):
                 try:
                     self.wfile.write(chunk({"role": "assistant"}))
                     seen_energy = 0
-                    gen = state.worker.stream(lambda: backend.stream_chat(
-                        messages, max_tokens=max_tokens, temperature=temperature))
+                    gen = events()
                     try:
-                        for c in gen:
-                            extra = {"energy": c.get("energy"), "tps": c.get("tps"), "simulated": simulated}
-                            seen_energy += 1 if c.get("energy") else 0
-                            self.wfile.write(chunk({"content": c["text"]}, extra))
+                        for e in gen:
+                            if e["type"] == "text":
+                                extra = {"energy": e.get("energy"), "tps": e.get("tps"), "simulated": simulated}
+                                seen_energy += 1 if e.get("energy") else 0
+                                self.wfile.write(chunk({"content": e["text"]} if e["text"] else {}, extra))
+                            elif e["type"] == "status":
+                                self.wfile.write(chunk({}, {"status": e["text"], "simulated": simulated}))
+                            else:
+                                self.wfile.write(chunk({}, {"sources": e["items"], "simulated": simulated}))
                             self.wfile.flush()
                     finally:
                         gen.close()

@@ -46,6 +46,19 @@ uv run --extra mlx cortex serve --open      # http://127.0.0.1:8765
 
 要求：Apple Silicon 的 macOS、[uv](https://docs.astral.sh/uv/)、足够的磁盘空间。推理 4-bit 24B 模型约需 15–20 GB 内存；Devstral Small 2 在序列长度 2048 下 LoRA 探针峰值约 18 GB（上述机器实测，其他机器未测试）。
 
+## 给本地模型联网搜索
+
+本地模型自己不能上网，需要外面的程序替它搜索，再把网页文字交给它。Cortex 提供两种方式（**默认都关闭**，你打开之前不会向外发送任何内容）：
+
+- **在 Cortex 聊天里：** 点**联网搜索**。模型需要时会输出 `<search>关键词</search>`，Cortex 去搜索并阅读前几个网页，模型据此回答并标注来源编号。任何模型都能用（不要求支持工具调用）。搜索来源可选 DuckDuckGo（免费、不需要账号）或你自己的 SearXNG（在**搜索设置**里选）。读取网页时拒绝本机和内网地址，网页文字只当资料，不当指令。
+- **给其他工具用（Claude Code、Codex，配 Ollama 或任何本地模型）：** `cortex mcp-search` 是一个 MCP 服务器（stdio），提供 `web_search` 和 `web_fetch`。示例（未对照当前客户端版本验证）：
+  - Claude Code：`claude mcp add cortex-search -- uv --directory /你的路径/cortex-mlx run cortex mcp-search`
+  - Codex（`~/.codex/config.toml`）：`[mcp_servers.cortex-search]`，`command = "uv"`，`args = ["--directory", "/你的路径/cortex-mlx", "run", "cortex", "mcp-search"]`
+
+  本地模型需要支持工具调用。Anthropic 自带的 WebSearch 是服务器端工具，Claude Code 连接本地模型时用不了，所以要用 MCP 工具补上。
+
+状态：DuckDuckGo 结果解析是在没有网络的环境里写的，还没有对真实网站验证；如果失效，请改用 SearXNG。
+
 ## 目前的实测数据（M5 Max，128 GB，mlx 0.32.4 / mlx-lm 0.32.2）
 
 | | Qwen3.6-27B（8-bit） | Devstral Small 2（4-bit） |

@@ -46,6 +46,19 @@ In the browser: open **Model library → Download** (Devstral Small 2 4-bit is a
 
 Requirements: macOS on Apple Silicon, [uv](https://docs.astral.sh/uv/), enough free disk for models. Inference of a 4-bit 24B model needs about 15–20 GB of memory; the LoRA probe peaked at about 18 GB for Devstral Small 2 at sequence length 2048 (measured on the machine above; other machines untested).
 
+## Web search for local models
+
+A local model cannot browse by itself; something outside it has to search and hand back the text. Cortex does this in two ways (both **off by default**; nothing leaves your machine until you turn it on):
+
+- **In the Cortex chat:** click **联网搜索 / Web search**. The model can answer with `<search>query</search>`; Cortex searches, reads the top pages, and the model answers with numbered sources. Works with any model (no tool-calling support needed). Provider: DuckDuckGo (no key) or your own SearXNG (**Search settings**). Page fetching refuses localhost / private addresses, and page text is treated as data, never as instructions.
+- **For other tools (Claude Code, Codex, with Ollama or any local model):** `cortex mcp-search` is an MCP server (stdio) exposing `web_search` and `web_fetch`. Examples (unverified against current client versions):
+  - Claude Code: `claude mcp add cortex-search -- uv --directory /path/to/cortex-mlx run cortex mcp-search`
+  - Codex (`~/.codex/config.toml`): `[mcp_servers.cortex-search]` with `command = "uv"` and `args = ["--directory", "/path/to/cortex-mlx", "run", "cortex", "mcp-search"]`
+  
+  The local model must support tool calling. Anthropic's built-in WebSearch is a server-side tool and is not available when Claude Code talks to a local model, which is why an MCP tool is needed.
+
+Status: the DuckDuckGo result parser was written without internet access and is untested against the live site; if it breaks, use SearXNG.
+
 ## Measured so far (M5 Max, 128 GB, mlx 0.32.4 / mlx-lm 0.32.2)
 
 | | Qwen3.6-27B (8-bit) | Devstral Small 2 (4-bit) |

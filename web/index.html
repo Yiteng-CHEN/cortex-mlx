@@ -104,6 +104,8 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
       <span class="sp"></span>
       <button id="btnLib" type="button">模型库</button>
       <button id="btnTrain" type="button">训练</button>
+      <button id="btnWeb" type="button" aria-pressed="false" title="打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）">联网搜索</button>
+      <button id="btnWebSet" type="button">搜索设置</button>
       <button id="clear" type="button">清空对话</button>
     </div>
     <div id="msgs" aria-live="polite"></div>
@@ -346,6 +348,7 @@ $('step').onclick=trainStep;
 
 // ======== 聊天 ========
 const history=[];
+let WEB=false;try{WEB=localStorage.getItem('cortex.web')==='1'}catch(_){}
 function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function render(el,text){ // 极简：``` 代码块
   const parts=text.split('```');el.innerHTML=parts.map((p,i)=>i%2?`<pre>${esc(p.replace(/^\w*[ \t]*\n/,''))}</pre>`:esc(p)).join('')}
@@ -363,16 +366,18 @@ let SIM_BACKEND=true;
 async function send(text){
   if(busy)return;busy=true;$('send').disabled=true;
   addMsg('u',text);history.push({role:'user',content:text});
-  const el=addMsg('a','');let out='',gotEnergy=false;
+  const el=addMsg('a','');let out='',gotEnergy=false,st=null,srcs=null;
   try{
     if(LIVE&&active){
-      const r=await fetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:active,stream:true,messages:history,max_tokens:1024})});
+      const r=await fetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:active,stream:true,web:WEB,messages:history,max_tokens:1024})});
       if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||r.status)}
       const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
       for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
         let i;while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+2);if(!line.startsWith('data:'))continue;const p=line.slice(5).trim();if(p==='[DONE]')continue;
           const o=JSON.parse(p);if(o.error)throw new Error(o.error);const d=o.choices&&o.choices[0].delta;
           if(d&&d.content){out+=d.content;render(el,out);$('msgs').scrollTop=1e9}
+          if(o.cortex&&o.cortex.status){if(!st){st=document.createElement('div');st.className='m sys';el.after(st)}st.textContent='🌐 '+o.cortex.status}
+          if(o.cortex&&o.cortex.sources)srcs=o.cortex.sources;
           if(o.cortex){if(o.cortex.energy){gotEnergy=true;pushEnergy(o.cortex.energy,o.cortex.simulated)}if(o.cortex.tps)$('scanTps').textContent=o.cortex.tps+' tok/s'}}}
     }else{ // 演示：不连接任何模型
       const demo="这是演示回复：页面没有连接到本地服务，所以回答和各层的活动都是模拟的。\n\n在 Mac 上运行 `uv run --extra mlx cortex serve --model devstral-small-2` 后打开 http://127.0.0.1:8765，这里就会显示 Devstral 真实生成的文字，大脑图和网络层会用它真实的逐层活动着色。";
@@ -380,6 +385,10 @@ async function send(text){
       for(const w of words){out+=w;render(el,out);$('msgs').scrollTop=1e9;
         const c=(k*2.7)%(NL+8)-4;pushEnergy(Array.from({length:NL},(_,i)=>Math.exp(-(((i-c)/3)**2))*(.65+.35*((i*7+k)%5)/4)),true);k++;await new Promise(r=>setTimeout(r,45))}
     }
+    if(srcs&&srcs.length){const d=document.createElement('div');d.className='m sys';d.style.textAlign='left';
+      d.append('来源：');srcs.forEach((x,i)=>{const a=document.createElement('a');a.href=x.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=`[${i+1}] ${x.title||x.url}`;a.style.marginRight='10px';d.appendChild(a)});
+      (st||el).after(d)}
+    if(st)st.textContent='🌐 已联网搜索';
     history.push({role:'assistant',content:out});
     if(LIVE&&active&&!SIM_BACKEND&&!gotEnergy)sysMsg('提示：这次回复没有收到逐层活动信号，所以立柱和层图不会亮。请把终端窗口里最后 20 行发给开发者。');
   }catch(e){el.className='m sys';el.textContent='出错：'+e.message;history.pop()}
@@ -387,6 +396,22 @@ async function send(text){
 }
 $('form').addEventListener('submit',e=>{e.preventDefault();const t=$('inp').value.trim();if(!t)return;$('inp').value='';send(t)});
 $('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('form').requestSubmit()}});
+function setWeb(v){WEB=v;try{localStorage.setItem('cortex.web',v?'1':'0')}catch(_){}$('btnWeb').setAttribute('aria-pressed',String(v));$('btnWeb').textContent=v?'联网搜索：开':'联网搜索'}
+$('btnWeb').onclick=()=>{if(!LIVE){sysMsg('联网搜索需要先启动本地服务。');return}setWeb(!WEB);sysMsg(WEB?'已开启联网搜索：模型需要时会自己搜索，你的问题会发给搜索服务。':'已关闭联网搜索：Cortex 不会向外发送任何内容。')};
+$('btnWebSet').onclick=async()=>{
+  openOv('搜索设置');if(!LIVE){$('mbody').innerHTML=needLive();return}
+  let c={provider:'duckduckgo',searxng_url:''};try{c=await api('/api/search')}catch(_){}
+  $('mbody').innerHTML=`<p class="hint">联网搜索打开后，模型需要最新信息时会自己搜索并阅读网页，回答里会标出来源。默认关闭；搜索时你的问题会发给所选搜索服务。网页内容只当作资料，不会当作指令执行；不会读取本机或内网地址。</p>
+   <form id="wform" style="display:flex;flex-direction:column;gap:10px">
+    <label><input type="radio" name="wp" value="duckduckgo" ${c.provider==='duckduckgo'?'checked':''}> DuckDuckGo（免费，不需要账号）</label>
+    <label><input type="radio" name="wp" value="searxng" ${c.provider==='searxng'?'checked':''}> 我自己的 SearXNG（更稳定、更隐私，需要自己部署）</label>
+    <input type="text" id="wurl" placeholder="SearXNG 地址，如 http://localhost:8080" value="${c.searxng_url.replace(/"/g,'&quot;')}" aria-label="SearXNG 地址">
+    <div class="row"><button class="btn1" type="submit">保存</button><button type="button" id="wtest">测试搜索</button></div><div class="err" id="werr"></div><div class="hint" id="wres"></div></form>`;
+  const cfg=()=>({provider:document.querySelector('input[name=wp]:checked').value,searxng_url:$('wurl').value.trim()});
+  $('wform').addEventListener('submit',async e=>{e.preventDefault();$('werr').textContent='';try{await api('/api/search',cfg());$('wres').textContent='已保存。'}catch(er){$('werr').textContent=er.message}});
+  $('wtest').onclick=async()=>{$('werr').textContent='';$('wres').textContent='正在测试…';try{await api('/api/search',cfg());const r=await api('/api/search/test',{q:'Apple MLX'});
+    if(r.ok){$('wres').textContent='成功，第一条结果：'+(r.results[0]?r.results[0].title:'(空)')}else{$('wres').textContent='';$('werr').textContent=r.error}}catch(er){$('wres').textContent='';$('werr').textContent=er.message}}
+};
 $('clear').onclick=()=>{history.length=0;$('msgs').innerHTML='';sysMsg(LIVE?'已清空。':'已清空（演示模式）。')};
 $('adapter').addEventListener('change',()=>{if(LIVE&&active)selectModel(active,$('adapter').value||null)});
 $('model').addEventListener('change',()=>{const k=$('model').value;if(!k)return;
@@ -591,5 +616,5 @@ let _lastDrawErr='',_drawErrs=0;
 function reportDrawError(e){ // 某一帧画错了不要让整个动画停掉；结构/权重长度不一致时自动重建
   const m=String(e&&e.message||e);if(m!==_lastDrawErr){_lastDrawErr=m;console.error('draw error:',e)}
   if(++_drawErrs%30===1){try{if(!W||W.length!==NL)synth();if(!H||!H.N||H.N!==NL*PER)buildHolo();buildNet()}catch(_){}}}
-boot();resizeGL();requestAnimationFrame(frame);
+setWeb(WEB);boot();resizeGL();requestAnimationFrame(frame);
 </script>

@@ -181,6 +181,12 @@ def cmd_serve(args, cfg) -> int:
     return 0
 
 
+def cmd_mcp_search(args, cfg) -> int:
+    from .mcp_search import main
+
+    return main(cfg)
+
+
 def cmd_fixture(args, cfg) -> int:
     from .devtools.fixture_repo import TEST_COMMAND, build
 
@@ -248,6 +254,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--model", help="candidate to load at startup (default: choose in the UI)")
     p.add_argument("--open", action="store_true", help="open the web UI in the default browser")
     p.set_defaults(fn=cmd_serve)
+
+    p = top.add_parser("mcp-search", help="MCP server (stdio): web_search + web_fetch for Claude Code / Codex with any local model")
+    p.set_defaults(fn=cmd_mcp_search)
 
     dv = top.add_parser("dev", help="developer tools").add_subparsers(dest="cmd", required=True)
     p = dv.add_parser("fixture-repo", help="create the synthetic test repo")
