@@ -232,14 +232,14 @@ function buildHolo(){
   ring.rotation.x=Math.PI/2;holo.add(ring);
   H={P,C,LP,LC,A,B,lay,jit,a0,rad,S,N,pg,lg,orbits,sats,sg,ring,hubs};
 }
-let rotY=.5,rotX=.16,vy=.004,drag=false,px0=0,py0=0;
+let rotY=.5,rotX=.16,vy=.002,drag=false,px0=0,py0=0;
 function updateHolo(t){
-  const {P,C,LP,LC,A,B,lay,jit,a0,rad,S,N}=H,fl=.9+.1*Math.sin(t*.031)*Math.sin(t*.0113),sec=t*.001;
+  const {P,C,LP,LC,A,B,lay,jit,a0,rad,S,N}=H,fl=.9+.1*Math.sin(t*.015)*Math.sin(t*.006),sec=t*.0005;
   const cs=new Float32Array(NL),sn=new Float32Array(NL);
   for(let l=0;l<NL;l++){const th=(l%2?1:-1)*sec*(.1+.09*((l*7)%5)/4);cs[l]=Math.cos(th);sn[l]=Math.sin(th)}
   for(let i=0;i<N;i++){const l=lay[i],ca=Math.cos(a0[i]),sa=Math.sin(a0[i]);
     P[i*3]=(ca*cs[l]-sa*sn[l])*rad[i];P[i*3+1]=Yl(l,NL);P[i*3+2]=(sa*cs[l]+ca*sn[l])*rad[i];
-    const e0=act[l]*(.55+.9*jit[i])+.05*(.5+.5*Math.sin(t*.002+jit[i]*40)),e=e0>1?1:e0,m=sstep(.1,.45,e),h=heat(.18+e*.82),b=.2+.5*jit[i];
+    const e0=act[l]*(.55+.9*jit[i])+.05*(.5+.5*Math.sin(t*.001+jit[i]*40)),e=e0>1?1:e0,m=sstep(.1,.45,e),h=heat(.18+e*.82),b=.2+.5*jit[i];
     C[i*3]=(.1*b*(1-m)+h[0]/255*m)*fl;C[i*3+1]=(.75*b*(1-m)+h[1]/255*m)*fl;C[i*3+2]=(.95*b*(1-m)+h[2]/255*m)*fl}
   for(let k=0;k<S;k++){const a=A[k],b=B[k],la=lay[a],lb=lay[b],s=la===lb?act[la]*.85:Math.sqrt(act[la]*act[lb]);
     LP[k*6]=P[a*3];LP[k*6+1]=P[a*3+1];LP[k*6+2]=P[a*3+2];LP[k*6+3]=P[b*3];LP[k*6+4]=P[b*3+1];LP[k*6+5]=P[b*3+2];
@@ -251,7 +251,7 @@ function updateHolo(t){
   const sa=H.sg.attributes.position.array;for(let k=0;k<3;k++){const q=sec*(.7+.3*k)+k*2.1,rr=1.62+.12*k;
     sa[k*3]=Math.cos(q)*rr;sa[k*3+1]=Math.sin(q*1.3+k)*.5*(1+k*.3);sa[k*3+2]=Math.sin(q)*rr}H.sg.attributes.position.needsUpdate=true;
   H.hubs.forEach((h,i)=>{h.rotation.y=sec*.4*(i%2?1:-1)});
-  H.ring.position.y=Math.sin(t*.0006)*1.1;H.ring.material.opacity=.25+.35*Math.cos(t*.0006)**2;
+  H.ring.position.y=Math.sin(t*.0003)*1.1;H.ring.material.opacity=.25+.35*Math.cos(t*.0003)**2;
 }
 // 刻度尺与层号（2D 叠加层）：随模型真实层数变化，每 5 层一个标签
 const _v=THREE.Vector3?new THREE.Vector3():null;
@@ -271,7 +271,7 @@ function resizeGL(){const s=cv.parentElement,w=s.clientWidth,h=s.clientHeight;if
 new ResizeObserver(resizeGL).observe(cv.parentElement);
 cv.addEventListener('pointerdown',e=>{drag=true;px0=e.clientX;py0=e.clientY;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
 cv.addEventListener('pointermove',e=>{if(!drag)return;rotY+=(e.clientX-px0)*.008;rotX=clamp(rotX+(e.clientY-py0)*.005,-.9,.9);px0=e.clientX;py0=e.clientY;vy=0});
-cv.addEventListener('pointerup',()=>{drag=false;cv.style.cursor='grab';vy=.004});
+cv.addEventListener('pointerup',()=>{drag=false;cv.style.cursor='grab';vy=.002});
 buildHolo();
 
 // ======== 神经网络层图：矩阵点阵 + 层间连线 + 脉冲 ========
@@ -298,7 +298,7 @@ function drawNet(t,isDark){
       if(s>.04){const h=heat(.25+.75*s);nx.strokeStyle=`rgba(${h[0]|0},${h[1]|0},${h[2]|0},${.25+.7*s})`;nx.lineWidth=.8+1.6*s}
       else{nx.strokeStyle=dim+'.16)';nx.lineWidth=.6}
       nx.beginPath();nx.moveTo(x0,y0);nx.bezierCurveTo(mx,y0,mx,y1,x1,y1);nx.stroke();
-      if(s>.12){const u=(t*.0011*(.7+ed.k)+ed.ph)%1,it=1-u,bx=it*it*it*x0+3*it*it*u*mx+3*it*u*u*mx+u*u*u*x1,by=it*it*it*y0+3*it*it*u*y0+3*it*u*u*y1+u*u*u*y1,h=heat(.5+.5*s);
+      if(s>.12){const u=(t*.0005*(.7+ed.k)+ed.ph)%1,it=1-u,bx=it*it*it*x0+3*it*it*u*mx+3*it*u*u*mx+u*u*u*x1,by=it*it*it*y0+3*it*it*u*y0+3*it*u*u*y1+u*u*u*y1,h=heat(.5+.5*s);
         nx.fillStyle=`rgba(${h[0]|0},${h[1]|0},${h[2]|0},${Math.min(1,s*1.3)})`;nx.beginPath();nx.arc(bx,by,1.5+1.8*s,0,6.283);nx.fill()}
     }
   }
@@ -580,8 +580,8 @@ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let isDark=true,lastCheck=0;
 function frame(t){
   if(t-lastCheck>800){lastCheck=t;isDark=(getComputedStyle(document.body).backgroundColor.match(/\d+/g)||[0]).map(Number).reduce((a,b)=>a+b,0)<384}
-  for(let l=0;l<NL;l++)act[l]*=.94;
-  if(trainRunning&&glow.length===NL)for(let l=0;l<NL;l++)act[l]=Math.max(act[l],glow[l]*(.5+.35*Math.sin(t*.004+l*.6)));
+  for(let l=0;l<NL;l++)act[l]*=.975;
+  if(trainRunning&&glow.length===NL)for(let l=0;l<NL;l++)act[l]=Math.max(act[l],glow[l]*(.5+.35*Math.sin(t*.002+l*.6)));
   if(!drag&&!reduce)rotY+=vy;rig.rotation.y=rotY;rig.rotation.x=rotX;
   for(const step of [()=>updateHolo(t),()=>renderer.render(scene,camera),drawHud,()=>drawNet(t,isDark)]){
     try{step()}catch(e){reportDrawError(e)}}
