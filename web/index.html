@@ -245,11 +245,9 @@ function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。�
   const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(DP,3));dg.setAttribute('color',new THREE.BufferAttribute(DC,3));
   holo.add(new THREE.Points(dg,new THREE.PointsMaterial({size:.018,vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
   // 卫星 + 扫描环
-  const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9),3));
-  const sats=new THREE.Points(sg,new THREE.PointsMaterial({size:.09,color:0xbff6ff,transparent:true,blending:ADD,depthWrite:false}));holo.add(sats);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(1.0,.005,6,120),new THREE.MeshBasicMaterial({color:0xffe9a8,transparent:true,opacity:.5,blending:ADD,depthWrite:false}));
   ring.rotation.x=Math.PI/2;holo.add(ring);
-  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,pg,fg,lg,arcs,cores,coreDot,sg,sats,ring,hubs};
+  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,pg,fg,lg,arcs,cores,coreDot,ring,hubs};
 }
 let rotY=.5,rotX=.16,vy=.002,drag=false,px0=0,py0=0;
 // ---- 球体 = 电脑硬件占用：占用越高，激活的区域越多越亮；休眠时是青蓝色，活跃区域是暗金色
@@ -305,9 +303,7 @@ function updateHolo(t){
   H.arcs.forEach((a,i)=>{a.ln.rotation.y=sec*a.spd*2.2+i;if(i<4)a.ln.material.color.setRGB(tc[0],tc[1],tc[2]);a.ln.material.opacity=(i<4?.35+.4*uS:.3)});
   H.cores.forEach((m,i)=>{m.rotation.y=sec*(.8+.4*i)*(i%2?-1:1);m.material.color.setRGB(tc[0],tc[1],tc[2]);m.material.opacity=.3+.55*Math.min(1,uS*1.4)});
   H.coreDot.material.color.setRGB(tc[0],tc[1],tc[2]);H.coreDot.material.opacity=.25+.55*Math.min(1,uS*1.5)*br;H.coreDot.material.size=.16+.24*Math.min(1,uS*1.5);
-  H.sats.material.color.setRGB(.75+.2*kk,.96-.2*kk,1-.5*kk);H.ring.material.color.setRGB(tc[0],tc[1],tc[2]);
-  const sa=H.sg.attributes.position.array;for(let k=0;k<3;k++){const q=sec*(1.4+.5*k)+k*2.1,rr=1.28+.14*k;
-    sa[k*3]=Math.cos(q)*rr;sa[k*3+1]=Math.sin(q*1.3+k)*.6*(1+k*.3);sa[k*3+2]=Math.sin(q)*rr}H.sg.attributes.position.needsUpdate=true;
+  H.ring.material.color.setRGB(tc[0],tc[1],tc[2]);
   H.hubs.forEach((h,i)=>{h.rotation.y=sec*.4*(i%2?1:-1);h.material.color.setRGB(tc[0],tc[1],tc[2])});
   H.ring.position.y=Math.sin(t*.0003)*1.05;H.ring.material.opacity=.12+.3*Math.cos(t*.0003)**2;
 }
