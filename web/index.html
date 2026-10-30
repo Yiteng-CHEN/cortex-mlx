@@ -312,9 +312,8 @@ function drawHud(){
     const major=l%step===0||l===NL-1,hot=act[l]>.35;xr=w*.17;
     hx.strokeStyle=hot?'#ffd36a':'rgba(111,200,226,.55)';hx.lineWidth=1;hx.beginPath();hx.moveTo(xr-(major?12:6),y);hx.lineTo(xr,y);hx.stroke();
     if(major){hx.fillStyle=hot?'#ffd36a':'#8fd6ea';hx.textAlign='right';hx.fillText('L'+l+(PAT[l]==='A'&&PAT.indexOf('L')>=0?' ◆':''),xr-16,y)}}
-  hx.fillStyle='#6fa8bd';hx.textAlign='left';hx.fillText(NL+' 层',xr-12,h*.5-(h*.42));
   const hwt=(LIVE&&(HW.gpu!=null||HW.mem!=null))?`显卡 ${HW.gpu!=null?Math.round(HW.gpu*100)+'%':'—'} · 内存 ${HW.gb!=null?HW.gb+'/'+HW.tot+' GB':'—'}${HW.model?' · 模型 '+HW.model+' GB':''}`:(LIVE?'硬件占用：读取中…':'硬件占用：模拟');
-  hx.textAlign='left';hx.fillStyle='#8fd6ea';hx.fillText('球体 = '+hwt,12,h-12);
+  hx.textAlign='left';hx.fillStyle='#8fd6ea';hx.fillText('球体 = '+hwt,14,h-36);
 }
 function resizeGL(){const s=cv.parentElement,w=s.clientWidth,h=s.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resizeGL).observe(cv.parentElement);
