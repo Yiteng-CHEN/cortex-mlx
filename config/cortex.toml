@@ -1,0 +1,73 @@
+# Cortex default config (committed). Machine-specific overrides go in config/local.toml
+# (git-ignored; see config/local.example.toml). Tables are deep-merged, local wins.
+
+[paths]
+# D10. Override with env CORTEX_DATA_DIR or [paths] data_dir in local.toml.
+data_dir = "~/Library/Application Support/Cortex"
+# D17: model downloads. Relative paths are relative to the project root. Override with env
+# CORTEX_MODELS_DIR or [paths] models_dir in local.toml.
+models_dir = "models"
+
+[generation]
+temperature = 0.0
+# Per task: min(max_tokens_cap, estimated source tokens * 1.5 + 1024)
+max_tokens_cap = 16384
+
+[eval]
+timeout_s = 300              # wall clock per setup/test command
+cpu_seconds = 900            # RLIMIT_CPU per command
+stability_runs = 3           # base must fail N/N, target must pass N/N
+context_budget_tokens = 24000
+max_source_lines = 200       # added + deleted lines in source files
+max_source_files = 5
+max_commits = 1000           # how far back to scan per mine
+max_tasks_per_mine = 60
+source_extensions = [".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".go", ".rs", ".java",
+                     ".kt", ".swift", ".rb", ".c", ".cc", ".cpp", ".h", ".hpp", ".cs", ".php"]
+# Patterns without "/" match the file name; patterns with "/" match the repo-relative path.
+test_patterns = ["test_*.py", "*_test.py", "*.test.ts", "*.test.tsx", "*.spec.ts", "*.test.js",
+                 "*.spec.js", "*_test.go", "tests/*", "*/tests/*", "test/*", "*/test/*",
+                 "__tests__/*", "*/__tests__/*"]
+
+[train_probe]
+iters = 10
+batch_size = 1
+num_layers = 16
+max_seq_length = 2048
+rank = 16
+examples = 20
+
+# --- Base model candidates (D13). Weights download on first use (~45 GB total). ---
+
+[candidates."qwen3.6-27b"]
+backend = "mlx"
+model = "unsloth/Qwen3.6-27B-MLX-8bit"     # ~29 GB
+min_free_gb = 45
+chat_template_kwargs = { enable_thinking = false }
+
+[candidates."devstral-small-2"]
+backend = "mlx"
+# Converted with mlx-vlm; if mlx-lm cannot load it, convert from
+# mistralai/Devstral-Small-2-24B-Instruct-2512 with mlx_lm.convert (D13).
+model = "mlx-community/Devstral-Small-2-24B-Instruct-2512-4bit"   # ~15 GB
+min_free_gb = 30
+# The mlx-community conversion triggers a "incorrect regex pattern" tokenizer warning (seen in M0 run).
+tokenizer_config = { fix_mistral_regex = true }
+
+# --- Mock candidates (tests / pipeline demo, no model needed) ---
+
+[candidates.demo-chat]            # 聊天界面的演示后端：回复与逐层活动均为模拟
+backend = "mock"
+mode = "chat"
+
+[candidates.mock-reference]
+backend = "mock"
+mode = "reference"   # returns the real fix -> should pass everything
+
+[candidates.mock-noop]
+backend = "mock"
+mode = "noop"        # returns files unchanged -> should fail everything
+
+[candidates.mock-garbage]
+backend = "mock"
+mode = "garbage"     # unparseable output -> format errors

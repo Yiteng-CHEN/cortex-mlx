@@ -1,0 +1,38 @@
+# --- AOCI: local state and host configs (contain absolute paths, never commit) ---
+# Keep aoci.txt / aoci.meta.txt / aoci.code.txt / AGENTS.md tracked.
+.aoci/
+.mcp.json
+.claude/settings.json
+.claude/settings.local.json
+.codex/config.toml
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.vite/
+
+# --- Project data (models, adapters, samples, eval results live outside git) ---
+data/
+models/
+*.safetensors
+*.gguf
+
+# --- Machine-specific config (local repo paths) ---
+config/local.toml
+
+# --- Secrets ---
+.env
+.env.*
+
+# --- macOS ---
+.DS_Store
+
+# --- 发布时排除 ---
+_to_delete/

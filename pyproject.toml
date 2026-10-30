@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cortex"
+version = "0.1.0"
+description = "Local self-evolving coding assistant with a brain visualizer"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []          # core is stdlib-only (D9)
+
+[project.optional-dependencies]
+# Apple Silicon only. Lower bound: MLX 0.32.4 added Gated DeltaNet / SDPA gradients (D13).
+mlx = [
+    "mlx>=0.32.4; sys_platform == 'darwin'",
+    "mlx-lm; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+cortex = "cortex.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,583 @@
+<title>Cortex 大脑</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* layout: compact 3D scan hero (left) beside the chat (right); the layer map with its connections runs full width below */
+:root{
+  --bg:#0b0d12; --panel:#12151c; --line:#232936; --fg:#e6e8ee; --mute:#8a90a0; --inset:#0a0d13;
+  --warn:#e8c26a; --accent:#4cc3d9; --you:#1c2433;
+  --display:'Fraunces',Georgia,serif; --body:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#eef0f4;--panel:#fff;--line:#d5d9e2;--fg:#161a22;--mute:#5d6578;--inset:#f3f5f9;--warn:#946a08;--accent:#0e7a92;--you:#e3e9f4;color-scheme:light}}
+:root[data-theme="light"]{--bg:#eef0f4;--panel:#fff;--line:#d5d9e2;--fg:#161a22;--mute:#5d6578;--inset:#f3f5f9;--warn:#946a08;--accent:#0e7a92;--you:#e3e9f4;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 28px}
+button,select,textarea{font:inherit;color:var(--fg)}
+button,select{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
+button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:12px;height:420px;margin-bottom:12px}
+.scan{position:relative;border:1px solid #1b2433;border-radius:12px;overflow:hidden;background:radial-gradient(90% 80% at 50% 55%,#06222e 0%,#02090f 72%);min-width:0}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+.scan h1{position:absolute;left:14px;top:10px;margin:0;font:500 22px/1.1 var(--display);color:#e6e8ee;letter-spacing:-.01em;pointer-events:none}
+.scan .mdl{position:absolute;left:14px;top:38px;font:11px var(--mono);color:#6fa8bd;pointer-events:none;max-width:70%}
+#hud{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.scan .meta{position:absolute;left:14px;bottom:10px;right:14px;display:flex;justify-content:space-between;gap:8px;font:11px var(--mono);color:#7d8aa3;pointer-events:none}
+.scan .meta b{color:#e8c26a;font-weight:400}
+.bar{position:absolute;right:14px;top:12px;width:10px;bottom:36px;border-radius:5px;background:linear-gradient(#ff3a2c,#f9e12c,#58dc58,#08c8dc,#1e3cc8);opacity:.9}
+.bar i{position:absolute;right:16px;font:10px var(--mono);color:#7d8aa3;font-style:normal}
+.chat{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.chead{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.chead select{min-width:0;max-width:100%}
+.badge{font:11px var(--mono);padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.badge.live{color:#58dc58;border-color:#58dc58}
+.badge.demo{color:var(--warn);border-color:var(--warn)}
+.sp{flex:1}
+#msgs{flex:1;min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:92%;padding:8px 12px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.m.u{align-self:flex-end;background:var(--you)}
+.m.a{align-self:flex-start;border:1px solid var(--line)}
+.m pre{margin:6px 0;padding:8px 10px;background:var(--inset);border-radius:6px;overflow-x:auto;font:12px/1.5 var(--mono);white-space:pre}
+.m.sys{align-self:center;color:var(--mute);font-size:12px;border:0;text-align:center}
+form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+textarea{flex:1;min-width:0;resize:none;height:44px;background:var(--inset);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+#send{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.net{background:var(--panel);border:1px solid var(--line);border-radius:12px;min-width:0;padding-top:10px;overflow:hidden}
+.nh{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between;align-items:center;padding:0 12px 8px;font-size:12px;color:var(--mute)}
+.nh b{color:var(--fg);font-weight:500}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--line);padding:4px 11px}
+.seg button:last-child{border-right:0}
+.nw{display:flex;min-width:0}
+.gut{flex:none;width:84px;position:relative;font:11px var(--mono);color:var(--mute)}
+.gut span{position:absolute;left:12px}
+.scroller{overflow-x:auto;min-width:0;flex:1;padding-bottom:6px;background:var(--inset)}
+#net{display:block}
+.key{display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 12px 12px;font-size:12px;color:var(--mute);border-top:1px solid var(--line)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.grad{display:inline-block;width:90px;height:8px;border-radius:2px;margin:0 6px;vertical-align:0;background:linear-gradient(90deg,#1e3cc8,#08c8dc,#58dc58,#f9e12c,#ff3a2c)}
+#tip{position:fixed;z-index:20;pointer-events:none;background:var(--panel);border:1px solid var(--fg);border-radius:7px;padding:7px 10px;font:12px/1.5 var(--mono);color:var(--fg);max-width:310px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+.ov{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.ov[hidden]{display:none}
+.mod{width:min(780px,100%);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.mh{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
+.mh b{font:500 18px var(--display)}
+#mbody{padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px}
+.hint{color:var(--mute);font-size:12px;margin:0}
+.err{color:#ff7a66;font-size:12px}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--inset)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row .sp{flex:1}
+.nm{font-weight:500}.rp{font:11px var(--mono);color:var(--mute);overflow-wrap:anywhere}
+.pill{font:11px var(--mono);padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.pill.ok{color:#58dc58;border-color:#58dc58}.pill.act{color:var(--accent);border-color:var(--accent)}
+.prog{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.prog i{display:block;height:100%;background:linear-gradient(90deg,#08c8dc,#58dc58)}
+input[type=text]{flex:1;min-width:180px;background:var(--inset);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--fg);font:inherit}
+.btn1{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.steps{display:flex;gap:6px;flex-wrap:wrap}.steps span{font:11px var(--mono);padding:2px 10px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}.steps span.on{color:var(--fg);border-color:var(--fg)}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--fg)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}.kv div{border:1px solid var(--line);border-radius:8px;padding:6px 10px}.kv small{display:block;color:var(--mute);font-size:11px}.kv b{font:500 16px var(--mono)}
+pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--mute)}
+@media (max-width:860px){.hero{grid-template-columns:1fr;height:auto}.scan{height:300px}.chat{height:440px}}
+</style>
+
+<div class="hero">
+  <div class="scan">
+    <canvas id="gl" aria-label="三维全息神经网络，每一圈节点是一层，颜色表示该层的实时活动"></canvas>
+    <h1>Cortex</h1>
+    <div class="mdl" id="scanModel"></div>
+    <canvas id="hud" aria-hidden="true"></canvas>
+    <div class="bar"><i style="top:-3px">高</i><i style="bottom:-3px">低</i></div>
+    <div class="meta"><span id="scanSig"></span><span id="scanTps"></span></div>
+  </div>
+  <section class="chat" aria-label="聊天">
+    <div class="chead">
+      <label for="model" class="badge" style="border:0;padding:0">模型</label>
+      <select id="model" aria-label="选择模型"></select>
+      <span class="badge" id="mode"></span>
+      <select id="adapter" aria-label="适配器" hidden></select>
+      <span class="sp"></span>
+      <button id="btnLib" type="button">模型库</button>
+      <button id="btnTrain" type="button">训练</button>
+      <button id="clear" type="button">清空对话</button>
+    </div>
+    <div id="msgs" aria-live="polite"></div>
+    <form id="form">
+      <textarea id="inp" placeholder="问点什么，Enter 发送，Shift+Enter 换行" aria-label="消息"></textarea>
+      <button id="send" type="submit">发送</button>
+    </form>
+  </section>
+</div>
+
+<div class="net">
+  <div class="nh">
+    <span><b>神经网络层</b> · <span id="nlayers">40</span> 层，层与层之间的连线随活动发光</span>
+    <span class="seg" id="modes" role="group" aria-label="显示模式">
+      <button data-m="infer" aria-pressed="true">推理</button>
+      <button data-m="train" aria-pressed="false">训练</button>
+      <button data-m="weights" aria-pressed="false">权重</button>
+    </span>
+    <button id="step" type="button">训练一步（示例）</button>
+    <span id="dataNote"></span>
+  </div>
+  <div class="nw"><div class="gut" id="gut"></div><div class="scroller" id="scroller"><canvas id="net"></canvas></div></div>
+  <div class="key" id="key"></div>
+</div>
+<div id="tip" hidden></div>
+<div class="ov" id="ov" hidden><div class="mod" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="mh"><b id="mtitle"></b><button id="mclose" type="button">关闭</button></div><div id="mbody"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const MONO="12px 'IBM Plex Mono',ui-monospace,monospace";
+let NL=40, G=12;
+const KNOWN={ // 来自 cortex models inspect 的实测结构；L=线性注意力层，A=全注意力层
+  'devstral-small-2':{n:40,pat:'A'.repeat(40),label:'Devstral Small 2 · 40 层 · 全部为标准注意力'},
+  'qwen3.6-27b':{n:64,pat:'LLLA'.repeat(16),label:'Qwen3.6-27B · 64 层 = 16 ×（3 线性注意力 + 1 全注意力）'}};
+let PAT=KNOWN['devstral-small-2'].pat;
+const MATS=[
+  {name:'self_attn.q_proj',label:'注意力 Q',shape:[4096,5120]},
+  {name:'self_attn.o_proj',label:'注意力 输出',shape:[5120,4096]},
+  {name:'mlp.gate_proj',label:'MLP 门控',shape:[32768,5120]},
+  {name:'mlp.down_proj',label:'MLP 下投影',shape:[5120,32768]}];
+const pick=(n,k)=>Math.round(k*(n-1)/(G-1));
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+function rng(seed){let s=seed>>>0;return()=>((s=Math.imul(s^s>>>15,1|s)+0x6D2B79F5>>>0),((s^s>>>7)>>>0)/4294967296)}
+// 医学扫描常用的热度色标：蓝 → 青 → 绿 → 黄 → 红
+const STOPS=[[0,[30,60,200]],[.25,[8,200,220]],[.5,[88,220,88]],[.75,[249,225,44]],[1,[255,58,44]]];
+function heat(e){e=clamp(e,0,1);for(let i=1;i<STOPS.length;i++){if(e<=STOPS[i][0]){const[a,ca]=STOPS[i-1],[b,cb]=STOPS[i],t=(e-a)/(b-a);return[ca[0]+(cb[0]-ca[0])*t,ca[1]+(cb[1]-ca[1])*t,ca[2]+(cb[2]-ca[2])*t]}}return STOPS[4][1]}
+
+// ======== 运行状态 ========
+let LIVE=false, SIM=true, active=null, busy=false;
+let act=new Float32Array(NL);          // 平滑后的显示强度 0..1
+let lo=new Float32Array(NL).fill(1e9), hi=new Float32Array(NL).fill(-1e9);
+function pushEnergy(arr,simulated){    // 一个 token 的逐层活动 → 归一化到 0..1
+  if(!arr||arr.length!==NL)return;
+  for(let l=0;l<NL;l++){const v=arr[l];
+    if(simulated){act[l]=Math.max(act[l],clamp(v,0,1));continue}
+    lo[l]=Math.min(lo[l]*.999+v*.001,v);hi[l]=Math.max(hi[l]*.999+v*.001,v);   // 每层的运行范围
+    const e=(v-lo[l])/(hi[l]-lo[l]+1e-6);act[l]=Math.max(act[l],clamp(e,0,1))}
+}
+function resetLayers(n){NL=n;act=new Float32Array(NL);lo=new Float32Array(NL).fill(1e9);hi=new Float32Array(NL).fill(-1e9);
+  dW=[...Array(NL)].map(()=>MATS.map(()=>new Float32Array(144)));dMax=1e-6;deltaReal=false;synth();$('nlayers').textContent=NL;buildNet();buildHolo()}
+function setStructure(key,n){ // 切换模型时让立柱的层数与真实层数一致
+  const K=KNOWN[key]||{n:40,pat:'A'.repeat(40),label:'演示后端 · 40 层'};const nn=n||K.n;
+  PAT=nn===K.n?K.pat:'A'.repeat(nn);$('scanModel').textContent=nn===K.n?K.label:K.label.split(' · ')[0]+' · '+nn+' 层';
+  resetLayers(nn);loadWeightsFor(key)}
+
+// ======== 权重（真实采样优先） ========
+let W=null,realWeights=false,dW=[],dMax=1e-6;
+function synth(){const r=rng(7),gauss=()=>Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r());
+  W=[];for(let l=0;l<NL;l++)W.push(MATS.map((m,k)=>{const sd=.012+.01*Math.sin(l/6+k)**2,v=new Float32Array(144);for(let i=0;i<144;i++)v[i]=gauss()*sd;return{v,std:sd,shape:m.shape}}));realWeights=false}
+function loadWeights(j){W=j.layers.map(L=>L.m.map(m=>({v:Float32Array.from(m.v),std:m.std,shape:m.shape})));realWeights=true}
+function noteData(){$('dataNote').innerHTML=realWeights?'权重值：<b>真实权重</b>':'权重值：<b style="color:var(--warn)">示例（运行 dump_weights.py 换成真实值）</b>'}
+function trainStep(){ // 示例：等训练接入后换成适配器的真实 ΔW
+  const r=Math.random;for(let l=0;l<NL;l++)for(let k=0;k<4;k++){const prof=(.3+.7*l/NL)*(k>=2?1:.6);
+    for(let i=0;i<144;i++){dW[l][k][i]+=(r()-.45)*W[l][k].std*.08*prof*(r()<.35?1:0);dMax=Math.max(dMax,Math.abs(dW[l][k][i]))}}
+  mode='train';setMode()
+}
+
+// ======== 3D 全息神经网络（原创：每层一圈节点；相邻层反向旋转；一圈 = 一层，和模型真实层数一致） ========
+const cv=$('gl'),renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(38,1,.1,50);camera.position.set(0,.15,6.3);
+const rig=new THREE.Group();scene.add(rig);
+const ADD=THREE.AdditiveBlending,hud=$('hud'),hx=hud.getContext('2d');
+let holo=null,H={},PER=36;
+const Rl=(l,n)=>.36+.64*Math.pow(Math.sin(Math.PI*(l+.5)/n),.8), Yl=(l,n)=>-1.05+2.1*l/Math.max(1,n-1);
+function mkLines(segs,color,op){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(segs),3));
+  return new THREE.LineSegments(g,new THREE.LineBasicMaterial({color,transparent:true,opacity:op,blending:ADD,depthWrite:false}))}
+function dashedRing(rad,dashes,color,op){const a=[];for(let i=0;i<dashes;i++){const t0=6.2832*i/dashes,t1=t0+6.2832/dashes*.55;a.push(Math.cos(t0)*rad,0,Math.sin(t0)*rad,Math.cos(t1)*rad,0,Math.sin(t1)*rad)}return mkLines(a,color,op)}
+function buildHolo(){
+  if(holo)rig.remove(holo);
+  holo=new THREE.Group();rig.add(holo);PER=NL>48?30:36;
+  const r=rng(21),N=NL*PER,P=new Float32Array(N*3),C=new Float32Array(N*3),lay=new Uint8Array(N),jit=new Float32Array(N),a0=new Float32Array(N),rad=new Float32Array(N);
+  const hybrid=PAT.indexOf('L')>=0;
+  for(let l=0;l<NL;l++){const rr=Rl(l,NL)*((hybrid&&PAT[l]==='L')?.9:1);for(let j=0;j<PER;j++){const i=l*PER+j;a0[i]=6.2832*j/PER+l*.11;rad[i]=rr;lay[i]=l;jit[i]=r()}}
+  const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(P,3));pg.setAttribute('color',new THREE.BufferAttribute(C,3));
+  holo.add(new THREE.Points(pg,new THREE.PointsMaterial({size:.055,vertexColors:true,transparent:true,blending:ADD,depthWrite:false,sizeAttenuation:true})));
+  const A=[],B=[];const id=(l,j)=>l*PER+((j%PER)+PER)%PER;
+  for(let l=0;l<NL;l++)for(let j=0;j<PER;j++){A.push(id(l,j));B.push(id(l,j+1));if(l<NL-1){A.push(id(l,j));B.push(id(l+1,j));A.push(id(l,j));B.push(id(l+1,j+1))}}
+  const S=A.length,LP=new Float32Array(S*6),LC=new Float32Array(S*6);
+  const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(LP,3));lg.setAttribute('color',new THREE.BufferAttribute(LC,3));
+  holo.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
+  // 混合架构：全注意力层再加一圈亮环作"枢纽"，一眼分辨层的类型
+  const hubs=[];if(hybrid)for(let l=0;l<NL;l++)if(PAT[l]==='A'){const h=dashedRing(Rl(l,NL)+.06,72,0xffd36a,.55);h.position.y=Yl(l,NL);holo.add(h);hubs.push(h)}
+  // 悬浮微粒
+  const D=420,DP=new Float32Array(D*3),DC=new Float32Array(D*3);
+  for(let i=0;i<D;i++){const a=r()*6.2832,q=Math.sqrt(r())*.95;DP[i*3]=Math.cos(a)*q;DP[i*3+1]=-1.1+2.2*r();DP[i*3+2]=Math.sin(a)*q;DC[i*3]=.05;DC[i*3+1]=.28;DC[i*3+2]=.36}
+  const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(DP,3));dg.setAttribute('color',new THREE.BufferAttribute(DC,3));
+  holo.add(new THREE.Points(dg,new THREE.PointsMaterial({size:.02,vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
+  // 底座：同心环 + 辐条 + 中轴光束
+  [.75,1.0,1.25].forEach((q,k)=>{const pts=[];for(let i=0;i<96;i++){const t0=6.2832*i/96,t1=6.2832*(i+1)/96;pts.push(Math.cos(t0)*q,-1.22,Math.sin(t0)*q,Math.cos(t1)*q,-1.22,Math.sin(t1)*q)}
+    holo.add(mkLines(pts,0x2fb8d8,.5-k*.12))});
+  const sp=[];for(let i=0;i<16;i++){const t=6.2832*i/16;sp.push(Math.cos(t)*.6,-1.22,Math.sin(t)*.6,Math.cos(t)*1.3,-1.22,Math.sin(t)*1.3)}holo.add(mkLines(sp,0x2fb8d8,.25));
+  holo.add(mkLines([0,-1.22,0,0,1.25,0],0x7fe8ff,.35));
+  // 外圈 HUD 轨道环（倾斜、慢速自转）+ 环绕卫星
+  const orbits=[dashedRing(1.62,90,0x4fd6f0,.55),dashedRing(1.78,60,0x2fb8d8,.4),dashedRing(1.48,120,0x7fe8ff,.3)];
+  orbits[0].rotation.x=1.18;orbits[1].rotation.z=.62;orbits[1].rotation.x=.3;orbits[2].rotation.x=-.5;orbits.forEach(o=>holo.add(o));
+  const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9),3));
+  const sats=new THREE.Points(sg,new THREE.PointsMaterial({size:.1,color:0xbff6ff,transparent:true,blending:ADD,depthWrite:false}));holo.add(sats);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.15,.006,6,120),new THREE.MeshBasicMaterial({color:0x7fe8ff,transparent:true,opacity:.6,blending:ADD,depthWrite:false}));
+  ring.rotation.x=Math.PI/2;holo.add(ring);
+  H={P,C,LP,LC,A,B,lay,jit,a0,rad,S,N,pg,lg,orbits,sats,sg,ring,hubs};
+}
+let rotY=.5,rotX=.16,vy=.004,drag=false,px0=0,py0=0;
+function updateHolo(t){
+  const {P,C,LP,LC,A,B,lay,jit,a0,rad,S,N}=H,fl=.9+.1*Math.sin(t*.031)*Math.sin(t*.0113),sec=t*.001;
+  const cs=new Float32Array(NL),sn=new Float32Array(NL);
+  for(let l=0;l<NL;l++){const th=(l%2?1:-1)*sec*(.1+.09*((l*7)%5)/4);cs[l]=Math.cos(th);sn[l]=Math.sin(th)}
+  for(let i=0;i<N;i++){const l=lay[i],ca=Math.cos(a0[i]),sa=Math.sin(a0[i]);
+    P[i*3]=(ca*cs[l]-sa*sn[l])*rad[i];P[i*3+1]=Yl(l,NL);P[i*3+2]=(sa*cs[l]+ca*sn[l])*rad[i];
+    const e0=act[l]*(.55+.9*jit[i])+.05*(.5+.5*Math.sin(t*.002+jit[i]*40)),e=e0>1?1:e0,m=sstep(.1,.45,e),h=heat(.18+e*.82),b=.2+.5*jit[i];
+    C[i*3]=(.1*b*(1-m)+h[0]/255*m)*fl;C[i*3+1]=(.75*b*(1-m)+h[1]/255*m)*fl;C[i*3+2]=(.95*b*(1-m)+h[2]/255*m)*fl}
+  for(let k=0;k<S;k++){const a=A[k],b=B[k],la=lay[a],lb=lay[b],s=la===lb?act[la]*.85:Math.sqrt(act[la]*act[lb]);
+    LP[k*6]=P[a*3];LP[k*6+1]=P[a*3+1];LP[k*6+2]=P[a*3+2];LP[k*6+3]=P[b*3];LP[k*6+4]=P[b*3+1];LP[k*6+5]=P[b*3+2];
+    const m=sstep(.06,.4,s),h=heat(.2+.8*s),base=.16;
+    const r=(.05*base*(1-m)+h[0]/255*m)*fl,g=(.5*base*(1-m)+h[1]/255*m)*fl,bl=(.65*base*(1-m)+h[2]/255*m)*fl;
+    LC[k*6]=r;LC[k*6+1]=g;LC[k*6+2]=bl;LC[k*6+3]=r;LC[k*6+4]=g;LC[k*6+5]=bl}
+  H.pg.attributes.position.needsUpdate=true;H.pg.attributes.color.needsUpdate=true;H.lg.attributes.position.needsUpdate=true;H.lg.attributes.color.needsUpdate=true;
+  H.orbits[0].rotation.y=sec*.5;H.orbits[1].rotation.y=-sec*.35;H.orbits[2].rotation.y=sec*.8;
+  const sa=H.sg.attributes.position.array;for(let k=0;k<3;k++){const q=sec*(.7+.3*k)+k*2.1,rr=1.62+.12*k;
+    sa[k*3]=Math.cos(q)*rr;sa[k*3+1]=Math.sin(q*1.3+k)*.5*(1+k*.3);sa[k*3+2]=Math.sin(q)*rr}H.sg.attributes.position.needsUpdate=true;
+  H.hubs.forEach((h,i)=>{h.rotation.y=sec*.4*(i%2?1:-1)});
+  H.ring.position.y=Math.sin(t*.0006)*1.1;H.ring.material.opacity=.25+.35*Math.cos(t*.0006)**2;
+}
+// 刻度尺与层号（2D 叠加层）：随模型真实层数变化，每 5 层一个标签
+const _v=THREE.Vector3?new THREE.Vector3():null;
+function drawHud(){
+  const w=hud.clientWidth,h=hud.clientHeight,d=Math.min(devicePixelRatio||1,2);
+  if(hud.width!==w*d||hud.height!==h*d){hud.width=w*d;hud.height=h*d}
+  hx.setTransform(d,0,0,d,0,0);hx.clearRect(0,0,w,h);if(!_v||!_v.project)return;
+  rig.updateMatrixWorld(true);hx.font='10px '+"'IBM Plex Mono',ui-monospace,monospace";hx.textBaseline='middle';
+  const step=NL>48?8:5;let xr=0;
+  for(let l=0;l<NL;l++){_v.set(0,Yl(l,NL),0).applyMatrix4(rig.matrixWorld).project(camera);const y=(1-_v.y)/2*h;
+    const major=l%step===0||l===NL-1,hot=act[l]>.35;xr=w*.17;
+    hx.strokeStyle=hot?'#ffd36a':'rgba(111,200,226,.55)';hx.lineWidth=1;hx.beginPath();hx.moveTo(xr-(major?12:6),y);hx.lineTo(xr,y);hx.stroke();
+    if(major){hx.fillStyle=hot?'#ffd36a':'#8fd6ea';hx.textAlign='right';hx.fillText('L'+l+(PAT[l]==='A'&&PAT.indexOf('L')>=0?' ◆':''),xr-16,y)}}
+  hx.fillStyle='#6fa8bd';hx.textAlign='left';hx.fillText(NL+' 层',xr-12,h*.5-(h*.42));
+}
+function resizeGL(){const s=cv.parentElement,w=s.clientWidth,h=s.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+new ResizeObserver(resizeGL).observe(cv.parentElement);
+cv.addEventListener('pointerdown',e=>{drag=true;px0=e.clientX;py0=e.clientY;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
+cv.addEventListener('pointermove',e=>{if(!drag)return;rotY+=(e.clientX-px0)*.008;rotX=clamp(rotX+(e.clientY-py0)*.005,-.9,.9);px0=e.clientX;py0=e.clientY;vy=0});
+cv.addEventListener('pointerup',()=>{drag=false;cv.style.cursor='grab';vy=.004});
+buildHolo();
+
+// ======== 神经网络层图：矩阵点阵 + 层间连线 + 脉冲 ========
+const CELL=5,TILE=CELL*G,COLW=TILE+44,TOP=26,ROWH=TILE+14;
+const net=$('net'),nx=net.getContext('2d'),dpr=Math.min(devicePixelRatio||1,2);
+let NETH=TOP+4*ROWH, mode='infer';
+function buildNet(){
+  net.width=NL*COLW*dpr;net.height=NETH*dpr;net.style.width=NL*COLW+'px';net.style.height=NETH+'px';
+  $('gut').style.height=NETH+'px';$('gut').innerHTML='';
+  MATS.forEach((m,k)=>{const s=document.createElement('span');s.textContent=m.label;s.style.top=(TOP+k*ROWH+TILE/2-7)+'px';$('gut').appendChild(s)});
+}
+// 每条连线（层 l 的矩阵 a → 层 l+1 的矩阵 b）固定一个随机相位和强度系数
+const er=rng(5);const EDGE=[...Array(64*16)].map(()=>({ph:er(),k:.45+.55*er()}));
+const tileX=l=>l*COLW+6, tileY=k=>TOP+k*ROWH;
+function drawNet(t,isDark){
+  nx.setTransform(dpr,0,0,dpr,0,0);nx.clearRect(0,0,NL*COLW,NETH);nx.font=MONO;
+  const dim=isDark?'rgba(120,140,170,':'rgba(70,90,120,';
+  // 1) 连线：未激活时淡淡的灰线，激活时按热度着色并有脉冲点沿线跑
+  for(let l=0;l<NL-1;l++){
+    const e=Math.sqrt(act[l]*act[l+1]);
+    for(let a=0;a<4;a++)for(let b=0;b<4;b++){
+      const ed=EDGE[(l%64)*16+a*4+b],x0=tileX(l)+TILE,y0=tileY(a)+TILE/2,x1=tileX(l+1),y1=tileY(b)+TILE/2,mx=(x0+x1)/2;
+      const s=clamp(e*ed.k*1.15,0,1);
+      if(s>.04){const h=heat(.25+.75*s);nx.strokeStyle=`rgba(${h[0]|0},${h[1]|0},${h[2]|0},${.25+.7*s})`;nx.lineWidth=.8+1.6*s}
+      else{nx.strokeStyle=dim+'.16)';nx.lineWidth=.6}
+      nx.beginPath();nx.moveTo(x0,y0);nx.bezierCurveTo(mx,y0,mx,y1,x1,y1);nx.stroke();
+      if(s>.12){const u=(t*.0011*(.7+ed.k)+ed.ph)%1,it=1-u,bx=it*it*it*x0+3*it*it*u*mx+3*it*u*u*mx+u*u*u*x1,by=it*it*it*y0+3*it*it*u*y0+3*it*u*u*y1+u*u*u*y1,h=heat(.5+.5*s);
+        nx.fillStyle=`rgba(${h[0]|0},${h[1]|0},${h[2]|0},${Math.min(1,s*1.3)})`;nx.beginPath();nx.arc(bx,by,1.5+1.8*s,0,6.283);nx.fill()}
+    }
+  }
+  // 2) 残差流：每层顶部一段，按该层活动发亮
+  for(let l=0;l<NL;l++){const e=act[l],h=heat(.15+.85*e);
+    nx.fillStyle=e>.05?`rgba(${h[0]|0},${h[1]|0},${h[2]|0},${.35+.65*e})`:dim+'.25)';nx.fillRect(tileX(l)-6,16,COLW-8,3);
+    nx.fillStyle=isDark?'#8a90a0':'#5d6578';nx.fillText('L'+l,tileX(l),11)}
+  // 3) 矩阵点阵
+  for(let l=0;l<NL;l++){
+    const x0=tileX(l),e=act[l];
+    for(let k=0;k<4;k++){
+      const y0=tileY(k),w=W[l][k],d=dW[l][k];
+      for(let r=0;r<G;r++)for(let c=0;c<G;c++){
+        const i=r*G+c,v=w.v[i],mag=Math.min(1,Math.abs(v)/(3*w.std));let rgb,a;
+        if(mode==='infer'){const lit=clamp(e*(.35+.9*mag),0,1);rgb=lit>.03?heat(.15+.85*lit):[110,130,165];a=lit>.03?.55+.45*lit:.1+.28*mag}
+        else if(mode==='weights'){rgb=v>=0?[255,154,82]:[76,195,217];a=.1+.9*mag}
+        else{const q=Math.min(1,Math.abs(d[i])/dMax*1.4);rgb=d[i]>=0?[184,227,106]:[255,120,80];a=.06+.94*q}
+        nx.fillStyle=`rgba(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0},${Math.min(1,a)})`;nx.fillRect(x0+c*CELL,y0+r*CELL,CELL-1,CELL-1);
+      }
+      if(hov&&hov.l===l&&hov.k===k){nx.strokeStyle=isDark?'#fff':'#000';nx.lineWidth=1.5;nx.strokeRect(x0+hov.c*CELL-.5,y0+hov.r*CELL-.5,CELL,CELL)}
+    }
+  }
+}
+let hov=null;const tip=$('tip');
+net.addEventListener('pointermove',ev=>{
+  const b=net.getBoundingClientRect(),x=ev.clientX-b.left,y=ev.clientY-b.top,l=Math.floor(x/COLW),px=x-tileX(l),k=Math.floor((y-TOP)/ROWH),py=y-TOP-k*ROWH;
+  const c=Math.floor(px/CELL),r=Math.floor(py/CELL);
+  if(l<0||l>=NL||k<0||k>3||px<0||py<0||c<0||c>=G||r<0||r>=G){hov=null;tip.hidden=true;return}
+  hov={l,k,r,c};const w=W[l][k],i=r*G+c,sh=w.shape;
+  let t=`<b>第 ${l} 层 · ${MATS[k].name}</b><br>位置：行 ${pick(sh[0],r)} / ${sh[0]}，列 ${pick(sh[1],c)} / ${sh[1]}<br>权重：${w.v[i].toFixed(5)}`+(realWeights?'':'（示例）')+`<br>该矩阵标准差：${w.std.toFixed(4)}`;
+  if(mode==='infer')t+=`<br>该层当前活动：${act[l].toFixed(2)}${SIM?'（模拟）':''}`;
+  if(mode==='train')t+=`<br>ΔW：${dW[l][k][i]>=0?'+':''}${dW[l][k][i].toExponential(2)}（${deltaReal?'真实，来自适配器':'示例'}）`;
+  tip.innerHTML=t;tip.hidden=false;
+  const tw=tip.offsetWidth,th=tip.offsetHeight;tip.style.left=Math.min(innerWidth-tw-8,ev.clientX+14)+'px';tip.style.top=Math.max(8,Math.min(innerHeight-th-8,ev.clientY+14))+'px';
+});
+net.addEventListener('pointerleave',()=>{hov=null;tip.hidden=true});
+function setMode(){document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.m===mode)));keyText()}
+function keyText(){
+  $('key').innerHTML={
+   infer:`<span>低<i class="grad"></i>高：该层这一步对当前 token 的改动幅度${SIM?'（模拟）':''}</span><span>连线发光 = 相邻两层同时活跃，亮点沿线移动</span>`,
+   train:`<span><i class="sw" style="background:#b8e36a"></i>权重增大</span><span><i class="sw" style="background:#ff7850"></i>权重减小</span><span>${deltaReal?'ΔW 来自适配器的真实值（与权重图同一位置）':'ΔW 为示例；训练后会换成适配器的真实值'}</span>`,
+   weights:`<span><i class="sw" style="background:#ff9a52"></i>正权重</span><span><i class="sw" style="background:#4cc3d9"></i>负权重</span><span>颜色深浅 = |权重| ÷ 该矩阵标准差（3σ 封顶）</span>`}[mode]}
+$('modes').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;mode=b.dataset.m;setMode()});
+$('step').onclick=trainStep;
+
+// ======== 聊天 ========
+const history=[];
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function render(el,text){ // 极简：``` 代码块
+  const parts=text.split('```');el.innerHTML=parts.map((p,i)=>i%2?`<pre>${esc(p.replace(/^\w*[ \t]*\n/,''))}</pre>`:esc(p)).join('')}
+function addMsg(role,text){const d=document.createElement('div');d.className='m '+role;render(d,text);$('msgs').appendChild(d);$('msgs').scrollTop=1e9;return d}
+function sysMsg(t){const d=addMsg('sys',t);return d}
+function setBadge(){
+  const b=$('mode');
+  if(LIVE&&active&&!SIM){b.className='badge live';b.textContent='实时 · 真实模型';$('scanSig').innerHTML='信号：<b>来自模型的实时逐层活动</b>'}
+  else if(LIVE&&active){b.className='badge demo';b.textContent='演示后端 · 回复与活动均为模拟';$('scanSig').innerHTML='信号：<b>模拟</b>'}
+  else if(LIVE){b.className='badge demo';b.textContent='未加载模型';$('scanSig').innerHTML='信号：<b>等待模型</b>'}
+  else{b.className='badge demo';b.textContent='演示模式 · 未连接本地服务';$('scanSig').innerHTML='信号：<b>模拟</b>'}
+  SIM=!(LIVE&&active&&!SIM_BACKEND);keyText()
+}
+let SIM_BACKEND=true;
+async function send(text){
+  if(busy)return;busy=true;$('send').disabled=true;
+  addMsg('u',text);history.push({role:'user',content:text});
+  const el=addMsg('a','');let out='';
+  try{
+    if(LIVE&&active){
+      const r=await fetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:active,stream:true,messages:history,max_tokens:1024})});
+      if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||r.status)}
+      const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+      for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+        let i;while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+2);if(!line.startsWith('data:'))continue;const p=line.slice(5).trim();if(p==='[DONE]')continue;
+          const o=JSON.parse(p);if(o.error)throw new Error(o.error);const d=o.choices&&o.choices[0].delta;
+          if(d&&d.content){out+=d.content;render(el,out);$('msgs').scrollTop=1e9}
+          if(o.cortex){if(o.cortex.energy)pushEnergy(o.cortex.energy,o.cortex.simulated);if(o.cortex.tps)$('scanTps').textContent=o.cortex.tps+' tok/s'}}}
+    }else{ // 演示：不连接任何模型
+      const demo="这是演示回复：页面没有连接到本地服务，所以回答和各层的活动都是模拟的。\n\n在 Mac 上运行 `uv run --extra mlx cortex serve --model devstral-small-2` 后打开 http://127.0.0.1:8765，这里就会显示 Devstral 真实生成的文字，大脑图和网络层会用它真实的逐层活动着色。";
+      const words=demo.split(/(?<=\s)/);let k=0;
+      for(const w of words){out+=w;render(el,out);$('msgs').scrollTop=1e9;
+        const c=(k*2.7)%(NL+8)-4;pushEnergy(Array.from({length:NL},(_,i)=>Math.exp(-(((i-c)/3)**2))*(.65+.35*((i*7+k)%5)/4)),true);k++;await new Promise(r=>setTimeout(r,45))}
+    }
+    history.push({role:'assistant',content:out});
+  }catch(e){el.className='m sys';el.textContent='出错：'+e.message;history.pop()}
+  busy=false;$('send').disabled=false;$('inp').focus();
+}
+$('form').addEventListener('submit',e=>{e.preventDefault();const t=$('inp').value.trim();if(!t)return;$('inp').value='';send(t)});
+$('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('form').requestSubmit()}});
+$('clear').onclick=()=>{history.length=0;$('msgs').innerHTML='';sysMsg(LIVE?'已清空。':'已清空（演示模式）。')};
+$('adapter').addEventListener('change',()=>{if(LIVE&&active)selectModel(active,$('adapter').value||null)});
+$('model').addEventListener('change',()=>{const k=$('model').value;if(!k)return;
+  const o=$('model').selectedOptions[0];if(LIVE&&o&&o.dataset.dl==='0'){openLibrary();refreshModels();return}setStructure(k);if(LIVE)selectModel(k);else sysMsg('演示模式：只切换了结构预览，回复仍是模拟的。')});
+
+async function selectModel(name,adapter){
+  $('model').disabled=true;$('send').disabled=true;const m=sysMsg(`正在加载 ${name}…（首次约一分钟，会先卸载上一个模型）`);
+  try{
+    const r=await fetch('/api/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,adapter:adapter||null})}),j=await r.json();
+    if(!r.ok)throw new Error(j.error);applyState(j);history.length=0;m.textContent=`${name} 已加载${adapter?'（带适配器）':''}。`;
+  }catch(e){m.textContent='加载失败：'+e.message;try{applyState(await (await fetch('/api/state')).json())}catch(_){}}
+  $('model').disabled=false;$('send').disabled=busy;
+}
+async function loadWeightsFor(name){
+  try{const url=LIVE?`/api/weights?model=${encodeURIComponent(name)}`:(name==='devstral-small-2'?'weights-devstral-small-2.json':null);
+    if(!url)throw 0;const r=await fetch(url);if(!r.ok)throw 0;const j=await r.json();if(j.layers.length!==NL)throw 0;loadWeights(j)}
+  catch(e){if(!W||W.length!==NL||realWeights)synth()}
+  noteData();
+}
+let adaptersAll=[];
+function fillOptions(s){
+  const sel=$('model');
+  sel.innerHTML=s.models.map(m=>`<option value="${m.name}" data-dl="${m.downloaded?1:0}" ${m.name===s.active?'selected':''}>${m.name}${m.simulated?'（演示）':''}${m.loaded?' ✓':''}${m.downloaded?'':' · 未下载'}</option>`).join('');
+  if(!s.active)sel.insertAdjacentHTML('afterbegin','<option value="" selected disabled>选择一个模型…</option>');
+  fillAdapters(s)}
+async function fillAdapters(s){
+  const ad=$('adapter');try{adaptersAll=(await api('/api/train/adapters')).adapters}catch(e){adaptersAll=[]}
+  const mine=adaptersAll.filter(a=>a.model===s.active);ad.hidden=!s.active||!mine.length;
+  ad.innerHTML='<option value="">不使用适配器</option>'+mine.map(a=>`<option value="${a.id}" ${a.id===s.adapter?'selected':''}>适配器 ${a.created}${a.loss!=null?' · loss '+a.loss.toFixed(2):''}</option>`).join('')}
+function applyState(s){
+  fillOptions(s);
+  active=s.active;SIM_BACKEND=s.simulated!==false;trainRunning=!!s.training;
+  if(active)setStructure(active,s.layers);
+  SIM=!(LIVE&&active&&!SIM_BACKEND);setBadge()
+}
+async function boot(){
+  dW=[...Array(NL)].map(()=>MATS.map(()=>new Float32Array(144)));synth();buildNet();setMode();
+  try{const r=await fetch('/api/state');if(!r.ok)throw 0;const s=await r.json();if(!s.models)throw 0;LIVE=true;$('step').hidden=true;applyState(s);
+    sysMsg(s.active?`已连接。当前模型：${s.active}`:'已连接本地服务。请在上方选择一个模型开始。')}
+  catch(e){LIVE=false;$('model').innerHTML='<option value="devstral-small-2">Devstral Small 2（演示）</option><option value="qwen3.6-27b">Qwen3.6-27B（演示）</option>';$('scanModel').textContent=KNOWN['devstral-small-2'].label;setBadge();
+    sysMsg('当前是演示模式：回复和活动均为模拟。启动本地服务后会自动连接真实模型。');loadWeightsFor('devstral-small-2')}
+  noteData();
+}
+
+
+// ======== 模型库 / 训练向导（需要本地服务） ========
+async function api(path,body){
+  const r=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error||('HTTP '+r.status));e.code=j.code;throw e}return j}
+const fmtB=b=>b>=1e9?(b/1e9).toFixed(1)+' GB':(b/1e6).toFixed(0)+' MB';
+let libTimer=null,trTimer=null,libData=null,libMsg='',delArm=null,trainRunning=false,deltaReal=false,glow=new Float32Array(0),wiz={step:1,dataset:null,files:[],meta:null};
+function openOv(t){$('mtitle').textContent=t;$('ov').hidden=false;document.body.style.overflow='hidden';$('mclose').focus()}
+function closeOv(){$('ov').hidden=true;clearInterval(libTimer);clearInterval(trTimer);libTimer=trTimer=null;document.body.style.overflow=''}
+$('mclose').onclick=closeOv;$('ov').addEventListener('mousedown',e=>{if(e.target===$('ov'))closeOv()});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('ov').hidden)closeOv()});
+const needLive=()=>`<div class="card"><b>这个功能需要本地服务</b><p class="hint">现在看到的是演示页面，没有连接到你电脑上的 Cortex。在项目文件夹里双击 <b>Cortex.command</b>，浏览器会自动打开完整版本；之后下载模型、加载、训练都能在界面上点按钮完成。</p></div>`;
+$('btnLib').onclick=openLibrary;$('btnTrain').onclick=openTrain;
+
+// ---- 模型库
+async function openLibrary(){
+  openOv('模型库');if(!LIVE){$('mbody').innerHTML=needLive();return}
+  $('mbody').innerHTML=`<p class="hint" id="libnote"></p><div id="liblist" style="display:flex;flex-direction:column;gap:10px"></div>
+   <form class="row" id="libadd"><input type="text" id="librepo" placeholder="添加其他模型：粘贴 Hugging Face 上的名字，如 mlx-community/…" aria-label="模型名"><button class="btn1" type="submit">检查并添加</button></form><div class="err" id="liberr"></div>
+   <p class="hint">想换模型：先“下载”，下载完点“加载”即可。已下载的模型保存在项目的 models 文件夹里，不用的可以删除来腾出空间。</p>`;
+  $('libadd').addEventListener('submit',async e=>{e.preventDefault();$('liberr').textContent='';const v=$('librepo').value.trim();if(!v)return;
+    try{$('liberr').textContent='正在检查…';await api('/api/library/add',{repo:v});$('librepo').value='';$('liberr').textContent='';await refreshLib();await refreshModels()}catch(er){$('liberr').textContent=er.message}});
+  $('liblist').addEventListener('click',libClick);
+  await refreshLib();libTimer=setInterval(refreshLib,1500)}
+async function refreshLib(){try{libData=await api('/api/library')}catch(e){return}renderLib()}
+function renderLib(){
+  if(!libData||!$('liblist'))return;const d=libData;
+  $('libnote').textContent=`磁盘可用 ${fmtB(d.free_bytes)} · 模型保存在 ${d.hub}`;
+  $('liblist').innerHTML=d.items.map(it=>{
+    const j=it.job,running=j&&j.state==='running',pct=running&&j.total?Math.min(99,Math.round(j.bytes/j.total*100)):null,dump=(d.dumps||{})[it.key];
+    const size=it.downloaded?fmtB(it.disk_bytes):(j&&j.total?'约 '+fmtB(j.total):(it.size?'约 '+fmtB(it.size):''));
+    const pills=[it.loaded?'<span class="pill act">已加载</span>':'',it.downloaded?'<span class="pill ok">已下载</span>':(running?'<span class="pill act">下载中'+(pct!=null?' '+pct+'%':'')+'</span>':'<span class="pill">未下载</span>'),size?`<span class="pill">${size}</span>`:''].join(' ');
+    let btns='';
+    if(running)btns=`<button data-a="cancel" data-k="${it.key}">取消下载</button>`;
+    else if(it.downloaded){
+      btns=(it.loaded?`<button data-a="unload" data-k="${it.key}">卸载</button>`:`<button class="btn1" data-a="load" data-k="${it.key}">加载</button>`)
+        +(it.weights?'':`<button data-a="weights" data-k="${it.key}" ${dump&&dump.state==='running'?'disabled':''}>${dump&&dump.state==='running'?'生成中…':'生成权重图'}</button>`)
+        +`<button data-a="delete" data-k="${it.key}">${delArm===it.key?'再点一次确认删除':'删除'}</button>`}
+    else btns=`<button class="btn1" data-a="download" data-k="${it.key}">下载</button>`;
+    if(it.source==='custom'&&!running)btns+=`<button data-a="remove" data-k="${it.key}">从列表移除</button>`;
+    return `<div class="card"><div class="row"><span class="nm">${it.name}</span>${pills}</div><div class="rp">${it.repo}${it.weights?' · 权重图已生成':''}</div>
+      ${running?`<div class="prog"><i style="width:${pct||3}%"></i></div>`:''}${j&&j.state==='error'?`<div class="err">下载失败：${j.error}</div>`:''}${dump&&dump.state==='error'?`<div class="err">生成权重图失败：${dump.error}</div>`:''}
+      <div class="row">${btns}</div></div>`}).join('')}
+async function libClick(e){
+  const b=e.target.closest('button');if(!b)return;const a=b.dataset.a,k=b.dataset.k;$('liberr').textContent='';
+  try{
+    if(a==='download')await api('/api/library/download',{key:k});
+    else if(a==='cancel')await api('/api/library/cancel',{key:k});
+    else if(a==='load'){closeOv();selectModel(k);return}
+    else if(a==='unload'){applyState(await api('/api/unload',{}))}
+    else if(a==='weights')await api('/api/library/weights',{key:k});
+    else if(a==='remove'){await api('/api/library/remove',{key:k});await refreshModels()}
+    else if(a==='delete'){if(delArm!==k){delArm=k;renderLib();setTimeout(()=>{if(delArm===k){delArm=null;renderLib()}},4000);return}
+      delArm=null;const r=await api('/api/library/delete',{key:k});$('liberr').textContent='已删除，释放 '+fmtB(r.freed);await refreshModels()}
+    await refreshLib()}catch(er){$('liberr').textContent=er.message}}
+async function refreshModels(){try{fillOptions(await api('/api/state'))}catch(e){}}
+
+// ---- 训练向导
+const STEPS=['选数据','选模型和强度','训练','完成'];
+async function openTrain(){
+  openOv('训练');if(!LIVE){$('mbody').innerHTML=needLive();return}
+  let st={state:'idle'};try{st=await api('/api/train/status')}catch(e){}
+  wiz.step=st.state==='running'?3:(st.state==='done'?4:1);
+  if(st.state==='failed'||st.state==='cancelled')wiz.step=3;
+  renderWiz(st);trTimer=setInterval(pollTrain,1500)}
+function stepsBar(){return `<div class="steps">${STEPS.map((s,i)=>`<span class="${wiz.step===i+1?'on':''}">${i+1} ${s}</span>`).join('')}</div>`}
+async function renderWiz(st){
+  const body=$('mbody');if(!body)return;
+  if(wiz.step===1){
+    let ds=[];try{ds=(await api('/api/train/datasets')).datasets}catch(e){}
+    body.innerHTML=stepsBar()+`<p class="hint">训练让 AI 学会你的写法和做事套路（例如你的代码风格、常用做法）。想让它记住书本里的知识，放进知识库更合适——这个功能稍后加入。</p>
+     <div class="drop" id="drop" tabindex="0" role="button">把文件拖到这里，或点击选择<br><small>支持 .jsonl（对话/问答）、.md、.txt 和代码文件；含密钥的样本会被自动剔除</small></div>
+     <input type="file" id="fin" multiple hidden>
+     <div id="flist" class="hint"></div><div class="row"><button class="btn1" id="fgo" disabled>导入并检查</button></div><div class="err" id="ferr"></div><div id="fres"></div>
+     ${ds.length?`<div class="lab hint">或者使用已导入的数据</div>`+ds.map(d=>`<div class="card"><div class="row"><span class="nm">${d.name}</span><span class="pill">${d.n_train} 条训练 / ${d.n_valid} 条验证</span><span class="sp"></span><button data-use="${d.id}">用这份</button></div></div>`).join(''):''}`;
+    const drop=$('drop'),fin=$('fin');
+    const setFiles=fs=>{wiz.files=[...fs];$('flist').textContent=wiz.files.length?wiz.files.map(f=>f.name).join('、'):'';$('fgo').disabled=!wiz.files.length};
+    drop.onclick=()=>fin.click();drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' ')fin.click()};fin.onchange=()=>setFiles(fin.files);
+    drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');
+    drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');setFiles(e.dataTransfer.files)};
+    $('fgo').onclick=async()=>{$('ferr').textContent='';$('fgo').disabled=true;
+      try{const files=await Promise.all(wiz.files.map(async f=>({name:f.name,text:await f.text()})));
+        const meta=await api('/api/train/dataset',{name:wiz.files[0].name.replace(/\.[^.]+$/,''),files});showMeta(meta)}catch(er){$('ferr').textContent=er.message;$('fgo').disabled=false}};
+    body.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{const m=ds.find(d=>d.id===b.dataset.use);showMeta(m)});
+  }else if(wiz.step===2){
+    const info=await api('/api/state'),real=info.models.filter(m=>!m.simulated&&m.downloaded),it=n=>plan(wiz.meta.n_train,n);
+    body.innerHTML=stepsBar()+`<div class="card"><div class="nm">数据：${wiz.meta.name}</div><div class="rp">${wiz.meta.n_train} 条训练样本，${wiz.meta.n_valid} 条用来检验</div></div>
+     ${real.length?'':'<div class="err">还没有已下载的模型。请先到“模型库”下载一个。</div>'}
+     <label class="hint" for="tmodel">训练哪个模型</label><select id="tmodel">${real.map(m=>`<option value="${m.name}" ${m.name===info.active?'selected':''}>${m.name}</option>`).join('')}</select>
+     <div class="hint">训练强度</div>
+     <label class="card"><span class="row"><input type="radio" name="pre" value="quick" checked> <b>快速试训</b><span class="rp">约 ${it('quick')} 步 · 先确认流程能跑通、看看效果</span></span></label>
+     <label class="card"><span class="row"><input type="radio" name="pre" value="standard"> <b>标准</b><span class="rp">约 ${it('standard')} 步 · 数据多时用</span></span></label>
+     <p class="hint">开始后会先卸载当前模型来腾出内存，训练期间聊天暂停。原模型文件不会被改动：训练结果是一个单独的“适配器”，不满意可以随时不用。</p>
+     <div class="row"><button id="tback">上一步</button><button class="btn1" id="tgo" ${real.length?'':'disabled'}>开始训练</button></div><div class="err" id="terr"></div>`;
+    $('tback').onclick=()=>{wiz.step=1;renderWiz()};
+    $('tgo').onclick=async()=>{$('tgo').disabled=true;try{await api('/api/train/start',{model:$('tmodel').value,dataset:wiz.meta.id,preset:body.querySelector('input[name=pre]:checked').value});
+      wiz.step=3;glow=new Float32Array(NL);deltaReal=false;renderWiz(await api('/api/train/status'));applyState(await api('/api/state'))}catch(er){$('terr').textContent=er.message;$('tgo').disabled=false}};
+  }else if(wiz.step===3){drawRun(st||await api('/api/train/status'))}
+  else if(wiz.step===4){drawDone(st||await api('/api/train/status'))}}
+const plan=(n,p)=>Math.round(Math.max(20,Math.min(p==='quick'?100:600,n*(p==='quick'?1:3))));
+function showMeta(m){wiz.meta=m;$('fres').innerHTML=`<div class="card"><div class="nm">已准备好：${m.n_train} 条训练 + ${m.n_valid} 条验证</div>${(m.warnings||[]).map(w=>`<div class="err" style="color:var(--warn)">• ${w}</div>`).join('')}<pre class="pv">${(m.preview||[]).join('\n')}</pre><div class="row"><button class="btn1" id="fnext">下一步</button></div></div>`;
+  $('fnext').onclick=()=>{wiz.step=2;renderWiz()}}
+function drawRun(st){
+  const pct=st.iters?Math.round(st.iter/st.iters*100):0,run=st.state==='running';
+  const mm=s=>s==null?'—':(s>=3600?Math.floor(s/3600)+' 时 ':'')+Math.floor(s%3600/60)+' 分';
+  $('mbody').innerHTML=stepsBar()+`<div class="row"><span class="nm">${st.state==='running'?'正在训练':st.state==='failed'?'训练失败':st.state==='cancelled'?'已取消':'训练'}</span><span class="rp">${st.model||''} · ${st.dataset_name||''}</span></div>
+   <div class="prog"><i style="width:${pct}%"></i></div>
+   <div class="kv"><div><small>进度</small><b>${st.iter||0} / ${st.iters||'—'}</b></div><div><small>训练损失</small><b>${st.loss==null?'—':st.loss.toFixed(3)}</b></div><div><small>验证损失</small><b>${st.val_loss==null?'—':st.val_loss.toFixed(3)}</b></div><div><small>速度</small><b>${st.tok_s?Math.round(st.tok_s)+' tok/s':'—'}</b></div><div><small>峰值内存</small><b>${st.peak_gb?st.peak_gb+' GB':'—'}</b></div><div><small>剩余时间</small><b>${run?mm(st.eta):'—'}</b></div></div>
+   <canvas id="lossc" height="90" style="width:100%;border:1px solid var(--line);border-radius:8px"></canvas>
+   <p class="hint">损失（loss）越低，说明它越能复现你的数据。你可以关闭这个窗口，训练会在后台继续；主页的“训练”视图会显示正在被修改的层和权重。</p>
+   ${st.error?`<div class="err">${st.error}</div>`:''}
+   <div class="row">${run?'<button id="tcancel">取消训练</button>':'<button class="btn1" id="tagain">重新开始</button>'}</div>`;
+  if($('tcancel'))$('tcancel').onclick=async()=>{renderWiz(await api('/api/train/cancel',{}))};
+  if($('tagain'))$('tagain').onclick=()=>{wiz.step=1;renderWiz()};
+  const c=$('lossc'),x=c.getContext('2d'),w=c.width=c.clientWidth*2,h=c.height=180,hs=st.history||[];x.clearRect(0,0,w,h);
+  if(hs.length>1){const ys=hs.map(a=>a[1]),mn=Math.min(...ys),mxv=Math.max(...ys),X=i=>10+(w-20)*i/(hs.length-1),Y=v=>h-14-(h-28)*(v-mn)/(mxv-mn+1e-9);
+    x.strokeStyle='#4cc3d9';x.lineWidth=2.5;x.beginPath();hs.forEach((a,i)=>i?x.lineTo(X(i),Y(a[1])):x.moveTo(X(i),Y(a[1])));x.stroke()}}
+function drawDone(st){
+  const first=(st.history||[])[0],mk=st.model;
+  $('mbody').innerHTML=stepsBar()+`<div class="card"><div class="nm">训练完成</div><div class="rp">损失 ${first?first[1].toFixed(3)+' → ':''}${st.loss==null?'—':st.loss.toFixed(3)}${st.val_loss!=null?' · 验证损失 '+st.val_loss.toFixed(3):''} · 用时 ${Math.round(st.elapsed/60)} 分钟</div></div>
+   <p class="hint">注意：新的适配器还没有经过自动评测，先小范围试用。效果不好就点“恢复原模型”，不会有任何损失。</p>
+   <div class="row"><button class="btn1" id="tuse">试用这个适配器</button><button id="tplain">恢复原模型（不用适配器）</button><button id="tagain">再训练一次</button></div><div class="err" id="terr"></div>`;
+  $('tuse').onclick=async()=>{closeOv();selectModel(mk,st.adapter)};
+  $('tplain').onclick=async()=>{closeOv();selectModel(mk,null)};
+  $('tagain').onclick=()=>{wiz.step=1;renderWiz()}}
+async function pollTrain(){
+  let st;try{st=await api('/api/train/status')}catch(e){return}
+  trainRunning=st.state==='running';
+  if(wiz.step===3&&st.state!=='running'&&st.state!=='idle'){if(st.state==='done'){wiz.step=4;await pullDelta(st.id);renderWiz(st)}else drawRun(st);return}
+  if(wiz.step===3)drawRun(st)}
+// 训练过程中，页面主体也同步：定时取适配器真实的权重变化
+setInterval(async()=>{if(!LIVE)return;let st;try{st=await api('/api/train/status')}catch(e){return}
+  const was=trainRunning;trainRunning=st.state==='running';
+  if(trainRunning&&st.iter>0)await pullDelta(st.id);
+  if(was&&!trainRunning&&st.state==='done')await pullDelta(st.id)},5000);
+async function pullDelta(id){try{applyDelta(await api('/api/train/delta?adapter='+encodeURIComponent(id)))}catch(e){}}
+function applyDelta(d){
+  if(!d.layers||!d.layers.length)return;const idx={};MATS.forEach((m,k)=>idx[m.name]=k);
+  glow=new Float32Array(NL);let mx=1e-12,gm=1e-12;
+  for(const L of d.layers){if(L.i>=NL)continue;let tot=0;for(const m of L.m){const k=idx[m.name];if(k===undefined)continue;dW[L.i][k].set(m.v);for(const v of m.v)mx=Math.max(mx,Math.abs(v));tot+=m.norm}glow[L.i]=tot;gm=Math.max(gm,tot)}
+  for(let l=0;l<NL;l++)glow[l]/=gm;dMax=mx;deltaReal=true;if(mode!=='train'){mode='train';setMode()}keyText()}
+
+// ======== 主循环 ========
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let isDark=true,lastCheck=0;
+function frame(t){
+  if(t-lastCheck>800){lastCheck=t;isDark=(getComputedStyle(document.body).backgroundColor.match(/\d+/g)||[0]).map(Number).reduce((a,b)=>a+b,0)<384}
+  for(let l=0;l<NL;l++)act[l]*=.94;
+  if(trainRunning&&glow.length===NL)for(let l=0;l<NL;l++)act[l]=Math.max(act[l],glow[l]*(.5+.35*Math.sin(t*.004+l*.6)));
+  if(!drag&&!reduce)rotY+=vy;rig.rotation.y=rotY;rig.rotation.x=rotX;
+  updateHolo(t);renderer.render(scene,camera);drawHud();drawNet(t,isDark);requestAnimationFrame(frame);
+}
+boot();resizeGL();requestAnimationFrame(frame);
+</script>
