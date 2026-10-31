@@ -39,7 +39,12 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 .bar i{position:absolute;right:16px;font:10px var(--mono);color:#7d8aa3;font-style:normal}
 .chat{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:12px}
 .chead{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
-.chead select{min-width:0;max-width:100%}
+.chead{justify-content:space-between;flex-wrap:nowrap;align-items:center}
+.chead .lhs{flex:1 1 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.chead .lhs select{height:32px;margin:0;min-width:150px;max-width:100%;flex:0 1 auto}
+.chead .lhs .badge{white-space:nowrap;flex:none;display:inline-flex;align-items:center;line-height:1;min-height:22px}
+.chead .tools{flex:none;display:grid;grid-template-columns:repeat(4,auto);gap:8px;justify-content:end;margin-left:auto}
+.chead .tools #clear{grid-column:4;grid-row:2}
 .badge{font:11px var(--mono);padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
 .badge.live{color:#58dc58;border-color:#58dc58}
 .badge.demo{color:var(--warn);border-color:var(--warn)}
@@ -104,16 +109,19 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
   </div>
   <section class="chat" aria-label="聊天">
     <div class="chead">
-      <label for="model" class="badge" style="border:0;padding:0">模型</label>
-      <select id="model" aria-label="选择模型"></select>
-      <span class="badge" id="mode"></span>
-      <select id="adapter" aria-label="适配器" hidden></select>
-      <span class="sp"></span>
-      <button id="btnLib" type="button">模型库</button>
-      <button id="btnTrain" type="button">训练</button>
-      <button id="btnWeb" type="button" aria-pressed="false" title="打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）">联网搜索</button>
-      <button id="btnWebSet" type="button">搜索设置</button>
-      <button id="clear" type="button">清空对话</button>
+      <div class="lhs">
+        <label for="model" class="badge" style="border:0;padding:0">模型</label>
+        <select id="model" aria-label="选择模型"></select>
+        <span class="badge" id="mode"></span>
+        <select id="adapter" aria-label="适配器" hidden></select>
+      </div>
+      <div class="tools">
+        <button id="btnLib" type="button">模型库</button>
+        <button id="btnTrain" type="button">训练</button>
+        <button id="btnWeb" type="button" aria-pressed="false" title="打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）">联网搜索</button>
+        <button id="btnWebSet" type="button">搜索设置</button>
+        <button id="clear" type="button">清空对话</button>
+      </div>
     </div>
     <div id="msgs" aria-live="polite"></div>
     <form id="form">
@@ -414,7 +422,7 @@ function sysMsg(t){const d=addMsg('sys',t);return d}
 function setBadge(){
   const b=$('mode');
   if(LIVE&&active&&!SIM){b.className='badge live';b.textContent='实时 · 真实模型';$('scanSig').innerHTML='信号：<b>来自模型的实时逐层活动</b>'}
-  else if(LIVE&&active){b.className='badge demo';b.textContent='演示后端 · 回复与活动均为模拟';$('scanSig').innerHTML='信号：<b>模拟</b>'}
+  else if(LIVE&&active){b.className='badge demo';b.textContent='演示后端 · 模拟';$('scanSig').innerHTML='信号：<b>模拟</b>'}
   else if(LIVE){b.className='badge demo';b.textContent='未加载模型';$('scanSig').innerHTML='信号：<b>等待模型</b>'}
   else{b.className='badge demo';b.textContent='演示模式 · 未连接本地服务';$('scanSig').innerHTML='信号：<b>模拟</b>'}
   SIM=!(LIVE&&active&&!SIM_BACKEND);keyText()
