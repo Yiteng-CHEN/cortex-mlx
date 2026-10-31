@@ -28,6 +28,8 @@ from .chat import DemoChat
 from .library import Library
 from . import websearch
 from .books import Books, BookError, with_reference
+from . import agent as agentmod
+from .agent import AgentError, Proposals, Workspace
 from .search import SearchError, Searcher
 from .hardware import Hardware
 from .training import Datasets, Trainer, adapter_delta
@@ -136,6 +138,14 @@ class State:
         self.library = library or Library(cfg, cfg.data_dir, hf_cache_dir(cfg))
         self.datasets = Datasets(cfg.data_dir / "datasets")
         self.books = Books(cfg.data_dir / "books")
+        self.proposals = Proposals(cfg.data_dir / "agent" / "changes")
+        self._ws_file = cfg.data_dir / "agent" / "workspace.txt"
+        self.workspace: Workspace | None = None
+        try:
+            self.workspace = Workspace(agentmod.check_workspace(self._ws_file.read_text(encoding="utf-8")))
+        except (OSError, AgentError):
+            self.workspace = None
+
         self.trainer = trainer or Trainer(cfg.data_dir, self.datasets, spawn)
         self.delta_fn = delta_fn or adapter_delta
         self.dumps: dict[str, dict] = {}
@@ -150,6 +160,35 @@ class State:
         return mlxutil.active_memory_bytes()
 
     # ---- web search (opt-in per request)
+    def set_workspace(self, path: str) -> dict:
+        ws = Workspace(agentmod.check_workspace(path))
+        self.workspace = ws
+        self._ws_file.parent.mkdir(parents=True, exist_ok=True)
+        self._ws_file.write_text(str(ws.root), encoding="utf-8")
+        return self.agent_info()
+
+    def clear_workspace(self) -> dict:
+        self.workspace = None
+        try:
+            self._ws_file.unlink()
+        except OSError:
+            pass
+        return self.agent_info()
+
+    def agent_info(self) -> dict:
+        ws = self.workspace
+        return {"workspace": str(ws.root) if ws else None, "name": ws.name if ws else None,
+                "changes": self.proposals.changes(ws.root if ws else None)}
+
+    def pick_folder(self) -> dict:
+        if sys.platform != "darwin":
+            raise RuntimeError("自动选择文件夹目前只支持 macOS，请直接粘贴文件夹路径")
+        r = subprocess.run(["osascript", "-e", 'POSIX path of (choose folder with prompt "选择项目文件夹 / Choose a project folder")'],
+                           capture_output=True, text=True, timeout=300)
+        if r.returncode != 0:
+            return {"path": None}
+        return {"path": r.stdout.strip().rstrip("/") or None}
+
     def search_config(self) -> dict:
         try:
             j = json.loads(self._search_file.read_text())
@@ -361,6 +400,8 @@ def make_handler(state: State):
                     self._json({"error": "no weight sample"}, 404)
             elif p == "/api/search":
                 self._guard(lambda: self._json(state.search_config()))
+            elif p == "/api/agent":
+                self._guard(lambda: self._json(state.agent_info()))
             elif p == "/api/books":
                 self._guard(lambda: self._json({"books": state.books.list()}))
             elif p == "/api/hw":
@@ -400,6 +441,11 @@ def make_handler(state: State):
                 "/api/library/delete": lambda: self._json({"freed": self._delete(str(body.get("key", "")))}),
                 "/api/search": lambda: self._json(state.set_search_config(
                     str(body.get("provider", "duckduckgo")), str(body.get("searxng_url", "")))),
+                "/api/agent/workspace": lambda: self._json(state.set_workspace(str(body.get("path", ""))) if body.get("path")
+                                                           else state.clear_workspace()),
+                "/api/agent/pick": lambda: self._json(state.pick_folder()),
+                "/api/agent/decide": lambda: self._json(state.proposals.decide(str(body.get("id", "")), bool(body.get("approve")))),
+                "/api/agent/undo": lambda: self._json(state.proposals.undo(str(body.get("id", "")))),
                 "/api/books/add": lambda: self._json(state.books.add_b64(
                     str(body.get("name", "")), str(body.get("filename", "")), str(body.get("data", "")))),
                 "/api/books/remove": lambda: (state.books.remove(str(body.get("id", ""))), self._json({"ok": True})),
@@ -476,21 +522,28 @@ def make_handler(state: State):
                 return state.worker.stream(lambda: backend.stream_chat(
                     msgs, max_tokens=max_tokens, temperature=temperature))
 
-            use_books = bool(body.get("books")) and not simulated and state.books.has_any()
+            lang = "en" if body.get("lang") == "en" else "zh"
+            use_books = bool(body.get("books")) and not simulated and state.books.has_any() and not body.get("agent")
             msgs_in = messages
             book_src: list[dict] = []
             if use_books:
                 q = next((m.get("content") for m in reversed(messages) if m.get("role") == "user"), "")
                 hits = state.books.search(q if isinstance(q, str) else "", 5)
                 if hits:
-                    msgs_in = with_reference(messages, hits)
-                    book_src = [{"title": f"《{h['book']}》第 {h['n']} 段", "url": ""} for h in hits]
+                    msgs_in = with_reference(messages, hits, lang)
+                    book_src = [{"title": (f"《{h['book']}》第 {h['n']} 段" if lang != "en" else f"\"{h['book']}\", passage {h['n']}"), "url": ""} for h in hits]
+
+            use_agent = bool(body.get("agent")) and bool(body.get("stream")) and not simulated and state.workspace is not None
 
             def events():
+                if use_agent:
+                    yield from agentmod.run(chat, messages, state.workspace, state.proposals, lang=lang,
+                                            books=state.books if body.get("books") else None)
+                    return
                 if book_src:
                     yield {"type": "sources", "items": book_src}
                 if use_web:
-                    yield from websearch.run(chat, msgs_in, state.searcher())
+                    yield from websearch.run(chat, msgs_in, state.searcher(), lang=lang)
                 else:
                     for c in chat(msgs_in):
                         yield {"type": "text", "text": c["text"], "energy": c.get("energy"), "tps": c.get("tps")}
@@ -521,6 +574,10 @@ def make_handler(state: State):
                                 self.wfile.write(chunk({"content": e["text"]} if e["text"] else {}, extra))
                             elif e["type"] == "status":
                                 self.wfile.write(chunk({}, {"status": e["text"], "simulated": simulated}))
+                            elif e["type"] == "ping":
+                                self.wfile.write(b": ping\n\n")
+                            elif e["type"] == "agent":
+                                self.wfile.write(chunk({}, {"agent": {k: v for k, v in e.items() if k != "type"}, "simulated": simulated}))
                             else:
                                 self.wfile.write(chunk({}, {"sources": e["items"], "simulated": simulated}))
                             self.wfile.flush()
