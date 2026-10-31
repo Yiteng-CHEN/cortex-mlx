@@ -28,6 +28,13 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 #hud{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .scan .meta{position:absolute;left:14px;bottom:10px;right:14px;display:flex;justify-content:space-between;gap:8px;font:11px var(--mono);color:#7d8aa3;pointer-events:none}
 .scan .meta b{color:#e8c26a;font-weight:400}
+.scan{--sc-line:#1b2433}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .scan{background:radial-gradient(90% 80% at 50% 55%,#8fe0f2 0%,#46b3d2 78%);border-color:#7cc4da}
+ :root:not([data-theme="dark"]) .scan h1{color:#06222e}:root:not([data-theme="dark"]) .scan .mdl,:root:not([data-theme="dark"]) .scan .meta,:root:not([data-theme="dark"]) .bar i{color:#0b3a4d}
+ :root:not([data-theme="dark"]) .scan .meta b{color:#6b3f00}}
+:root[data-theme="light"] .scan{background:radial-gradient(90% 80% at 50% 55%,#8fe0f2 0%,#46b3d2 78%);border-color:#7cc4da}
+:root[data-theme="light"] .scan h1{color:#06222e}:root[data-theme="light"] .scan .mdl,:root[data-theme="light"] .scan .meta,:root[data-theme="light"] .bar i{color:#0b3a4d}
+:root[data-theme="light"] .scan .meta b{color:#6b3f00}
 .bar{position:absolute;right:14px;top:12px;width:10px;bottom:36px;border-radius:5px;background:linear-gradient(#ff3a2c,#f9e12c,#58dc58,#08c8dc,#1e3cc8);opacity:.9}
 .bar i{position:absolute;right:16px;font:10px var(--mono);color:#7d8aa3;font-style:normal}
 .chat{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:12px}
@@ -172,7 +179,7 @@ function pushEnergy(arr,simulated){    // 一个 token 的逐层活动 → 归�
     const own=(v-lo[l])/(hi[l]-lo[l]+1e-6),rel=(v-mn)/span;                    // 相对自己 / 相对这一步里别的层
     const e=Math.pow(clamp(.45*own+.55*rel,0,1),2);                           // 平方：只让真正突出的层亮起来
     act[l]=Math.max(act[l],e)}
-  emitWave(1,.7)   // 每个 token：一圈信号从中心向外传导
+  emitWave(1,.4)   // 每个 token：一圈信号从中心向外传导
 }
 function resetLayers(n){NL=n;act=new Float32Array(NL);lo=new Float32Array(NL).fill(1e9);hi=new Float32Array(NL).fill(-1e9);
   dW=[...Array(NL)].map(()=>MATS.map(()=>new Float32Array(144)));dMax=1e-6;deltaReal=false;synth();$('nlayers').textContent=NL;buildNet();buildHolo()}
@@ -198,6 +205,7 @@ const cv=$('gl'),renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alph
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(38,1,.1,50);camera.position.set(0,.15,6.3);
 const rig=new THREE.Group();scene.add(rig);
+let isDark=true;
 const ADD=THREE.AdditiveBlending,hud=$('hud'),hx=hud.getContext('2d');
 let holo=null,H={},PER=36;
 const Rs=(l,n)=>{const y=Yl(l,n)/1.14;return .1+.95*Math.sqrt(Math.max(0,1-y*y))}, Yl=(l,n)=>-1.05+2.1*l/Math.max(1,n-1);
@@ -207,6 +215,9 @@ function mkLines(segs,color,op){const g=new THREE.BufferGeometry();g.setAttribut
   return new THREE.LineSegments(g,new THREE.LineBasicMaterial({color,transparent:true,opacity:op,blending:ADD,depthWrite:false}))}
 function arcLines(rad,start,span,n,color,op){const a=[];for(let i=0;i<n;i++){const t0=start+span*i/n,t1=start+span*(i+.6)/n;a.push(Math.cos(t0)*rad,0,Math.sin(t0)*rad,Math.cos(t1)*rad,0,Math.sin(t1)*rad)}return mkLines(a,color,op)}
 function dashedRing(rad,dashes,color,op){return arcLines(rad,0,6.2832,dashes,color,op)}
+let _hdark=null;   // 白色主题下 ADD 叠加混合会让球体消失，所以换成普通混合
+function applyHoloTheme(){if(!holo||_hdark===isDark)return;_hdark=isDark;const bm=isDark?ADD:THREE.NormalBlending;
+  (holo.children||[]).forEach(o=>{if(o.material){o.material.blending=bm;o.material.needsUpdate=true}})}
 function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。每层 = 球面上的一圈碎片（层数与模型真实层数一致）
   if(holo)rig.remove(holo);
   holo=new THREE.Group();rig.add(holo);PER=NL>48?44:60;
@@ -240,7 +251,7 @@ function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。�
   const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(DP,3));dg.setAttribute('color',new THREE.BufferAttribute(DC,3));
   holo.add(new THREE.Points(dg,new THREE.PointsMaterial({size:.018,vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
   // 卫星 + 扫描环
-  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,pg,fg,lg,cores,coreDot};
+  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,pg,fg,lg,cores,coreDot,as:new Float32Array(NL)};_hdark=null;applyHoloTheme();
 }
 let rotY=.5,rotX=.16,vy=.002,drag=false,px0=0,py0=0;
 // ---- 球体 = 电脑硬件占用：占用越高，激活的区域越多越亮；休眠时是青蓝色，活跃区域是暗金色
@@ -258,6 +269,8 @@ function pickLat(maxA,tot){ // 有层在活动：按各层活跃度挑一层，�
   if(tot>.15&&Math.random()<Math.min(.9,maxA*1.6)){let r=Math.random()*tot,l=0;for(;l<NL-1;l++){r-=act[l];if(r<=0)break}return clamp(Yl(l,NL)/1.14,-.95,.95)}
   return(Math.random()*2-1)*.9}
 const CY=[.31,.85,.96],GD=[1,.68,.22],lerp3=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
+const LGOLD=[[.3,.17,.02],[.55,.32,.03],[.78,.46,.04],[.95,.6,.08]];   // 白色主题用的深琥珀色
+function lgold(e,o){e=clamp(e,0,1)*3;const i=Math.min(2,e|0),f=e-i,a=LGOLD[i],b=LGOLD[i+1];o[0]=a[0]+(b[0]-a[0])*f;o[1]=a[1]+(b[1]-a[1])*f;o[2]=a[2]+(b[2]-a[2])*f}
 const DGOLD=[[.22,.12,.02],[.6,.36,.05],[.92,.58,.12],[1,.74,.3]];   // 暗金色，不会变成白色
 function dgold(e,o,k){e=clamp(e,0,1)*3;const i=Math.min(2,e|0),f=e-i,a=DGOLD[i],b=DGOLD[i+1];o[0]=(a[0]+(b[0]-a[0])*f)*k;o[1]=(a[1]+(b[1]-a[1])*f)*k;o[2]=(a[2]+(b[2]-a[2])*f)*k}
 function updateHolo(t){
@@ -267,32 +280,38 @@ function updateHolo(t){
   uS+=(hwLevel(mean)-uS)*(1-Math.pow(.5,dt/700));            // 平滑：占用变化时球体缓缓过渡
   // 亮区：数量随占用增加；每个亮区有自己的呼吸节奏，并缓慢漂移，纬度会被活跃的层吸引
   let tot=0;for(let l=0;l<NL;l++)tot+=act[l];
-  if(t>nextAmb){emitWave(ambDir,.3+.5*uS,t);ambDir=-ambDir;nextAmb=t+3300}     // 休眠时的呼吸：一次向外、一次向内
+  if(t>nextAmb){emitWave(ambDir,.3+.5*uS,t);ambDir=-ambDir;nextAmb=t+3300-1500*uS}   // 运行时呼吸更快、更强     // 休眠时的呼吸：一次向外、一次向内
   for(let k=WAVES.length-1;k>=0;k--)if(t-WAVES[k].t0>WAVES[k].dur)WAVES.splice(k,1);
   const wv=WAVES.map(w=>{const a=(t-w.t0)/w.dur;return[w.dir>0?a*1.08:1.08-a*1.08,w.amp*Math.pow(Math.sin(Math.PI*clamp(a,0,1)),.6)]});
-  const Kf=1+uS*7,sig2=.09+.16*uS,br=.88+.12*Math.sin(t*.0011),amp=1.5*sstep(0,.5,uS),cen=[];
+  const bp=Math.sin(t*.0016*(1+.7*uS)),br=1+(.1+.3*uS)*bp;                       // 整体呼吸：占用越高，起伏越大
+  if(holo&&holo.scale&&holo.scale.setScalar)holo.scale.setScalar(1+.01*bp+.035*uS*bp);
+  const as=H.as;for(let l=0;l<NL;l++)as[l]+=(act[l]-as[l])*(1-Math.pow(.5,dt/(act[l]>as[l]?180:650)));   // 层活动取平滑值，避免每个 token 整体闪一下
+  const Kf=1+uS*5,sig2=.08+.09*uS,amp=1.3*sstep(0,.5,uS),cen=[];
   BL.forEach((b,k)=>{if(t>b.next){b.tl=pickLat(maxA,tot);b.next=t+1400+Math.random()*2200}
     b.lat+=(b.tl-b.lat)*(1-Math.pow(.5,dt/600));b.lon+=b.sp*dt;const cp=Math.sqrt(Math.max(0,1-b.lat*b.lat));
-    cen.push([cp*Math.cos(b.lon),b.lat,cp*Math.sin(b.lon),clamp(Kf-k,0,1)*(.55+.45*Math.sin(t*.0007*(.8+.12*k)+b.ph))])});
+    cen.push([cp*Math.cos(b.lon),b.lat,cp*Math.sin(b.lon),clamp(Kf-k,0,1)*(.1+.9*(.5+.5*Math.sin(t*.0009*(1+.6*uS)*(.8+.12*k)+b.ph)))])});   // 每个亮区各自一明一暗地呼吸
   for(let i=0;i<N;i++){const l=lay[i],ca=Math.cos(a0[i]),sa=Math.sin(a0[i]),ux=ca*cs[l]-sa*sn[l],uz=sa*cs[l]+ca*sn[l],R=rad[i],y=Yl(l,NL)+yo[i];
     const x=ux*R,z=uz*R;P[i*3]=x;P[i*3+1]=y;P[i*3+2]=z;
     const px=x/1.1,py=y/1.1,pz=z/1.1,rr=Math.sqrt(px*px+py*py+pz*pz);let field=0,wave=0;
     for(let k=0;k<8;k++){const c=cen[k];if(c[3]<=0)continue;const d2=(px-c[0]*.72)**2+(py-c[1]*.72)**2+(pz-c[2]*.72)**2;field+=c[3]*Math.exp(-d2/sig2)}
     for(const w of wv){const q=(rr-w[0])/.14;if(q<2.5&&q>-2.5)wave+=w[1]*Math.exp(-q*q)}
-    const m=clamp(field*amp*br*(.7+.6*jit[i])+act[l]*(.35+.65*uS)*.8+wave*(.12+.6*uS),0,1);mL[l]+=m/PER;
+    const m=clamp(field*amp*br*(.7+.6*jit[i])+as[l]*(.3+.4*uS)*.7+wave*(.12+.6*uS),0,1);mL[l]+=m/PER;
     const L=len[i]*(1+.6*m+.7*wave),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
     FP[i*6]=x;FP[i*6+1]=y;FP[i*6+2]=z;FP[i*6+3]=x+dx*L;FP[i*6+4]=y+dy*L;FP[i*6+5]=z+dz*L;
-    const bb=.2+.5*jit[i],mm=sstep(.08,.5,m);dgold(m,col,fl*(.4+.6*m));
-    const cb=bb*fl*(1+1.7*wave),r=(.1*cb)*(1-mm)+col[0]*mm,g=(.75*cb)*(1-mm)+col[1]*mm,bl=(.95*cb)*(1-mm)+col[2]*mm;
+    const bb=.2+.5*jit[i],mm=sstep(.08,.5,m);let r,g,bl;
+    if(isDark){dgold(m,col,fl*(.4+.6*m));const cb=bb*fl*(1+1.7*wave);r=(.1*cb)*(1-mm)+col[0]*mm;g=(.75*cb)*(1-mm)+col[1]*mm;bl=(.95*cb)*(1-mm)+col[2]*mm}
+    else{lgold(m,col);const nb=.55+.9*bb,wv=clamp(wave*1.3,0,1);                   // 白色主题：休眠色用深色背景的深蓝，活跃用深琥珀，信号波用亮白
+      r=((.02*nb)*(1-mm)+col[0]*mm)*(1-wv)+.95*wv;g=((.14*nb)*(1-mm)+col[1]*mm)*(1-wv)+wv;bl=((.22*nb)*(1-mm)+col[2]*mm)*(1-wv)+wv}
     C[i*3]=r;C[i*3+1]=g;C[i*3+2]=bl;FC[i*6]=r;FC[i*6+1]=g;FC[i*6+2]=bl;FC[i*6+3]=r*.35;FC[i*6+4]=g*.35;FC[i*6+5]=bl*.35}
   for(let k=0;k<S;k++){const a=A[k],b=B[k],s=Math.sqrt(mL[lay[a]]*mL[lay[b]]);
     LP[k*6]=P[a*3];LP[k*6+1]=P[a*3+1];LP[k*6+2]=P[a*3+2];LP[k*6+3]=P[b*3];LP[k*6+4]=P[b*3+1];LP[k*6+5]=P[b*3+2];
-    const mm=sstep(.05,.4,s),base=.16;dgold(.3+.7*s,col,fl*(.3+.7*s));
-    const r=(.05*base*(1-mm)+col[0]*mm)*fl,g=(.5*base*(1-mm)+col[1]*mm)*fl,bl=(.65*base*(1-mm)+col[2]*mm)*fl;
+    const mm=sstep(.05,.4,s),base=.16;let r,g,bl;
+    if(isDark){dgold(.3+.7*s,col,fl*(.3+.7*s));r=(.05*base*(1-mm)+col[0]*mm)*fl;g=(.5*base*(1-mm)+col[1]*mm)*fl;bl=(.65*base*(1-mm)+col[2]*mm)*fl}
+    else{lgold(.3+.7*s,col);r=.02*(1-mm)+col[0]*mm;g=.2*(1-mm)+col[1]*mm;bl=.3*(1-mm)+col[2]*mm}
     LC[k*6]=r;LC[k*6+1]=g;LC[k*6+2]=bl;LC[k*6+3]=r;LC[k*6+4]=g;LC[k*6+5]=bl}
   for(const g of [H.pg,H.fg,H.lg]){g.attributes.position.needsUpdate=true;g.attributes.color.needsUpdate=true}
   // 轨道环 / 核心 / 光环：休眠时青蓝，占用高时偏暗金
-  const kk=sstep(.08,.75,uS),tc=lerp3(CY,GD,kk);
+  const kk=sstep(.08,.75,uS),tc=isDark?lerp3(CY,GD,kk):lerp3([.02,.16,.25],[.8,.48,.04],kk);
   H.cores.forEach((m,i)=>{m.rotation.y=sec*(.8+.4*i)*(i%2?-1:1);m.material.color.setRGB(tc[0],tc[1],tc[2]);m.material.opacity=.3+.55*Math.min(1,uS*1.4)});
   H.coreDot.material.color.setRGB(tc[0],tc[1],tc[2]);H.coreDot.material.opacity=.25+.55*Math.min(1,uS*1.5)*br;H.coreDot.material.size=.16+.24*Math.min(1,uS*1.5);
   
@@ -307,10 +326,10 @@ function drawHud(){
   const step=NL>48?8:5;let xr=0;
   for(let l=0;l<NL;l++){_v.set(0,Yl(l,NL),0).applyMatrix4(rig.matrixWorld).project(camera);const y=(1-_v.y)/2*h;
     const major=l%step===0||l===NL-1,hot=act[l]>.35;xr=w*.17;
-    hx.strokeStyle=hot?'#ffd36a':'rgba(111,200,226,.55)';hx.lineWidth=1;hx.beginPath();hx.moveTo(xr-(major?12:6),y);hx.lineTo(xr,y);hx.stroke();
-    if(major){hx.fillStyle=hot?'#ffd36a':'#8fd6ea';hx.textAlign='right';hx.fillText('L'+l+(PAT[l]==='A'&&PAT.indexOf('L')>=0?' ◆':''),xr-16,y)}}
+    hx.strokeStyle=hot?(isDark?'#ffd36a':'#7a4a00'):(isDark?'rgba(111,200,226,.55)':'rgba(6,34,46,.6)');hx.lineWidth=1;hx.beginPath();hx.moveTo(xr-(major?12:6),y);hx.lineTo(xr,y);hx.stroke();
+    if(major){hx.fillStyle=hot?(isDark?'#ffd36a':'#7a4a00'):(isDark?'#8fd6ea':'#06222e');hx.textAlign='right';hx.fillText('L'+l+(PAT[l]==='A'&&PAT.indexOf('L')>=0?' ◆':''),xr-16,y)}}
   const hwt=(LIVE&&(HW.gpu!=null||HW.mem!=null))?`显卡 ${HW.gpu!=null?Math.round(HW.gpu*100)+'%':'—'} · 内存 ${HW.gb!=null?HW.gb+'/'+HW.tot+' GB':'—'}${HW.model?' · 模型 '+HW.model+' GB':''}`:(LIVE?'硬件占用：读取中…':'硬件占用：模拟');
-  hx.textAlign='left';hx.fillStyle='#8fd6ea';hx.fillText('球体 = '+hwt,14,h-36);
+  hx.textAlign='left';hx.fillStyle=isDark?'#8fd6ea':'#06222e';hx.fillText('球体 = '+hwt,14,h-36);
 }
 function resizeGL(){const s=cv.parentElement,w=s.clientWidth,h=s.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resizeGL).observe(cv.parentElement);
@@ -645,9 +664,10 @@ function applyDelta(d){
 
 // ======== 主循环 ========
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let isDark=true,lastCheck=0;
+let lastCheck=0;
 function frame(t){
   if(t-lastCheck>800){lastCheck=t;isDark=(getComputedStyle(document.body).backgroundColor.match(/\d+/g)||[0]).map(Number).reduce((a,b)=>a+b,0)<384}
+  applyHoloTheme();
   const dt=Math.min(100,Math.max(0,t-(frame.t0||t)));frame.t0=t;const dk=Math.pow(.5,dt/380);  // 半衰期约 0.4 秒，和帧率无关
   for(let l=0;l<NL;l++)act[l]*=dk;
   if(trainRunning&&glow.length===NL)for(let l=0;l<NL;l++)act[l]=Math.max(act[l],glow[l]*(.5+.35*Math.sin(t*.002+l*.6)));
