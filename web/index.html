@@ -263,10 +263,8 @@ function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。�
   H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,ch,S,N,pg,fg,lg,cores,coreDot,as:new Float32Array(NL)};_hdark=null;applyHoloTheme();
 }
 let rotY=.5,rotX=.16,vy=.002,drag=false,px0=0,py0=0;
-// ---- 球体 = 电脑硬件占用：占用越高，激活的区域越多越亮；休眠时是青蓝色，活跃区域是暗金色
-// ---- 球体 = 电脑硬件占用：占用越高，脑电波式的金色信号越多越强；休眠时只有微弱的青蓝色闪动
-const _cr=rng(77),CHN=48,CHP=[...Array(CHN)].map(()=>({f:[.3+.5*_cr(),.9+1.1*_cr(),2.4+1.8*_cr()],p:[6.28*_cr(),6.28*_cr(),6.28*_cr()],fe:.035+.07*_cr(),pe:6.28*_cr(),ts:-1e9,amp:0}));
-let kick=0;                                  // 每个 token 会让脑电信号短暂变密
+// ---- 球体 = 电脑硬件占用 + 大脑皮层：占用越高，"思考的电信号"越频繁。信号像闪电一样沿球面掠过各个区域，带分叉和渐隐的尾迹
+let kick=0;                                  // 每个 token 会让信号短暂变密
 let HW={gpu:null,mem:null,gb:null,tot:null,model:null},uS=0;
 async function pollHw(){if(!LIVE)return;try{const j=await api('/api/hw');HW={gpu:j.gpu,mem:j.mem_pct,gb:j.mem_used_gb,tot:j.mem_total_gb,model:j.model_gb}}catch(_){}}
 setInterval(pollHw,1000);
@@ -280,32 +278,52 @@ function lgold(e,o){e=clamp(e,0,1)*3;const i=Math.min(2,e|0),f=e-i,a=LGOLD[i],b=
 const DGOLD=[[.22,.12,.02],[.6,.36,.05],[.92,.58,.12],[1,.74,.3]];   // 暗金色，不会变成白色
 function dgold(e,o,k){e=clamp(e,0,1)*3;const i=Math.min(2,e|0),f=e-i,a=DGOLD[i],b=DGOLD[i+1];o[0]=(a[0]+(b[0]-a[0])*f)*k;o[1]=(a[1]+(b[1]-a[1])*f)*k;o[2]=(a[2]+(b[2]-a[2])*f)*k}
 const TAU=6.2832;
+// —— 闪电式信号：球面上一条带抖动的路径，亮头沿路径前进，身后留下渐隐的尾迹，中途可能分叉
+const BOLTS=[],BK=28;
+const v3={cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],norm:a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]},
+  randUnit:()=>{const z=Math.random()*2-1,a=Math.random()*TAU,r=Math.sqrt(1-z*z);return[r*Math.cos(a),z,r*Math.sin(a)]}};
+function randTangent(a){let t=v3.randUnit();const d=t[0]*a[0]+t[1]*a[1]+t[2]*a[2];return v3.norm([t[0]-a[0]*d,t[1]-a[1]*d,t[2]-a[2]*d])}
+function makeBolt(t0,a,len,dur,tail,amp){
+  const t1=randTangent(a),c=v3.cross(a,t1),pts=new Float32Array(BK*3),ph=[Math.random()*TAU,Math.random()*TAU],jw=.12+.2*Math.random();let walk=0;
+  for(let k=0;k<BK;k++){const u=k/(BK-1),th=len*u;walk+=(Math.random()-.5)*.09;const J=jw*(.6*Math.sin(6*u+ph[0])+.4*Math.sin(15*u+ph[1]))+walk;
+    const p=v3.norm([a[0]*Math.cos(th)+t1[0]*Math.sin(th)+c[0]*J,a[1]*Math.cos(th)+t1[1]*Math.sin(th)+c[1]*J,a[2]*Math.cos(th)+t1[2]*Math.sin(th)+c[2]*J]);
+    pts[k*3]=p[0];pts[k*3+1]=p[1];pts[k*3+2]=p[2]}
+  const b={t0,dur,tail,amp,pts};BOLTS.push(b);return b}
+function spawnEvent(t,as,tot){
+  let a;if(tot>.15&&Math.random()<.7){let r=Math.random()*tot,l=0;for(;l<NL-1;l++){r-=as[l];if(r<=0)break}   // 起点常落在当前活跃的那一层的高度，但沿球面朝随机方向掠过
+    const lat=Math.asin(clamp(Yl(l,NL)/1.14,-.97,.97)),lon=Math.random()*TAU;a=[Math.cos(lat)*Math.cos(lon),Math.sin(lat),Math.cos(lat)*Math.sin(lon)]}
+  else a=v3.randUnit();
+  const dur=1500+1500*Math.random(),b=makeBolt(t,a,.9+1.4*Math.random(),dur,1000+600*Math.random(),.75+.25*Math.random());
+  for(let n=Math.random()<.65?(Math.random()<.4?2:1):0;n>0;n--){const k0=7+Math.floor(Math.random()*14),p=[b.pts[k0*3],b.pts[k0*3+1],b.pts[k0*3+2]];
+    makeBolt(t+dur*k0/(BK-1),p,.4+.7*Math.random(),dur*.55,b.tail*.8,b.amp*.7)}
+  while(BOLTS.length>14)BOLTS.shift()}
 function updateHolo(t){
-  const {P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,ch,S,N}=H,fl=.92+.08*Math.sin(t*.012)*Math.sin(t*.0047),sec=t*.0005,col=[0,0,0],dt=Math.min(100,Math.max(0,t-(H.t0||t)));H.t0=t;
-  const cs=new Float32Array(NL),sn=new Float32Array(NL),mL=new Float32Array(NL);let mean=0;
+  const {P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N}=H,fl=.92+.08*Math.sin(t*.012)*Math.sin(t*.0047),sec=t*.0005,col=[0,0,0],dt=Math.min(100,Math.max(0,t-(H.t0||t)));H.t0=t;
+  const cs=new Float32Array(NL),sn=new Float32Array(NL),mL=new Float32Array(NL);let mean=0,tot=0;
   for(let l=0;l<NL;l++){const th=(l%2?1:-1)*sec*(.1+.09*((l*7)%5)/4);cs[l]=Math.cos(th);sn[l]=Math.sin(th);mean+=act[l]}mean/=NL;
   uS+=(hwLevel(mean)-uS)*(1-Math.pow(.5,dt/700));            // 平滑：占用变化时球体缓缓过渡
   kick*=Math.pow(.5,dt/500);
-  const as=H.as;for(let l=0;l<NL;l++)as[l]+=(act[l]-as[l])*(1-Math.pow(.5,dt/(act[l]>as[l]?180:650)));   // 层活动取平滑值
-  // 脑电波：每个通道（球面上的一块区域）有自己的几种频率叠加 + 缓慢涨落的包络（像睡眠纺锤波）+ 偶发的尖峰；占用越高越快越强
-  const spd=1+.8*uS,gate=sstep(0,.45,uS),sp=new Float32Array(CHN);
-  CHP.forEach((c,k)=>{if(Math.random()<dt/1000*(.03+.5*uS+.5*kick)){c.ts=t;c.amp=.4+.6*Math.random()}
-    const age=t-c.ts;sp[k]=age>=0&&age<1000?c.amp*Math.exp(-age/240):0;c.dr=.6*Math.sin(t*.00017*(1+k*.07)+k)});   // dr：每个通道的频率缓慢漂移，不会周期重复
+  const as=H.as;for(let l=0;l<NL;l++){as[l]+=(act[l]-as[l])*(1-Math.pow(.5,dt/(act[l]>as[l]?180:650)));tot+=as[l]}   // 层活动取平滑值
+  if(Math.random()<dt/1000*(.15+1.7*uS+1.2*kick))spawnEvent(t,as,tot);                                              // 占用越高，信号越频繁
+  // 收集所有"亮着"的路径点（位置 + 亮度）
+  const ax=[],ay=[],az=[],aw=[];
+  for(let q=BOLTS.length-1;q>=0;q--){const b=BOLTS[q],age=t-b.t0;if(age>b.dur+b.tail){BOLTS.splice(q,1);continue}if(age<0)continue;
+    for(let k=0;k<BK;k++){const tp=age-b.dur*k/(BK-1);if(tp<0||tp>b.tail)continue;
+      const f=1-tp/b.tail,w=b.amp*f*f*(tp<160?1.4-tp/400:1);if(w>.03){ax.push(b.pts[k*3]);ay.push(b.pts[k*3+1]);az.push(b.pts[k*3+2]);aw.push(w)}}}
+  const na=aw.length,gate=sstep(0,.45,uS),sig2=.05;
   const bp=Math.sin(t*.0016*(1+.7*uS)),br=1+(.1+.3*uS)*bp;                       // 核心亮度起伏（不改变球体大小）
-  const T=t/1000*spd;
   for(let i=0;i<N;i++){const l=lay[i],ca=Math.cos(a0[i]),sa=Math.sin(a0[i]),ux=ca*cs[l]-sa*sn[l],uz=sa*cs[l]+ca*sn[l],R=rad[i],y=Yl(l,NL)+yo[i];
     const x=ux*R,z=uz*R;P[i*3]=x;P[i*3+1]=y;P[i*3+2]=z;
-    const c=CHP[ch[i]],nz=.5*Math.sin(x*3.1+y*1.7+t*.00031+1.3)+.3*Math.sin(y*2.9-z*2.3+t*.00023+4.1)+.2*Math.sin(z*3.7+x*1.3-t*.00037+2.6),
-      tt=T+nz*1.4+jit[i]*.5+c.dr;                                          // 相位由缓慢漂移的随机场决定：亮暗成片出现、方向和位置不断变化，没有固定的上下走向
-    const g=.55*Math.sin(TAU*c.f[0]*tt+c.p[0])+.3*Math.sin(TAU*c.f[1]*tt+c.p[1])+.15*Math.sin(TAU*c.f[2]*tt+c.p[2]);
-    const env=.5+.5*Math.sin(TAU*c.fe*tt+c.pe),lw=.55+1.2*as[l];
-    const e=Math.pow(clamp((g*env-.2)*2.6,0,1),1.4)*lw,spk=sp[ch[i]]*(.5+.5*jit[i]);
-    const m=clamp(gate*(e*.85+spk)+as[l]*(.3+.4*uS)*.35,0,1);mL[l]+=m/PER;
-    const L=len[i]*(1+.6*m+.4*e),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
+    const il=1/(Math.sqrt(x*x+y*y+z*z)+1e-6),dx0=x*il,dy0=y*il,dz0=z*il;let bolt=0;
+    for(let k=0;k<na;k++){const ex=dx0-ax[k],ey=dy0-ay[k],ez=dz0-az[k],d2=ex*ex+ey*ey+ez*ez;if(d2<sig2){const q=1-d2/sig2;bolt+=aw[k]*q*q}}
+    bolt=Math.min(1,bolt)*(.45+.55*Math.min(1,rho[i]/.9));                       // 越靠外层（皮层）越亮，球心的碎片只微微泛光
+    const amb=.18*clamp(Math.sin(x*3.1+y*1.7+t*.00031+1.3)*.5+Math.sin(y*2.9-z*2.3+t*.00023+4.1)*.5+.15,0,1);   // 极淡的、缓慢漂移的背景微光
+    const m=clamp(gate*(bolt*1.15+amb)+as[l]*(.1+.2*uS)*.5,0,1);mL[l]+=m/PER;
+    const L=len[i]*(1+.6*m),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
     FP[i*6]=x;FP[i*6+1]=y;FP[i*6+2]=z;FP[i*6+3]=x+dx*L;FP[i*6+4]=y+dy*L;FP[i*6+5]=z+dz*L;
-    const bb=.2+.5*jit[i],mm=sstep(.1,.5,m),sh=Math.min(1,e*.8)*(1-gate);let r,gg,bl;   // sh：休眠时的微弱青蓝闪动
-    if(isDark){dgold(m,col,fl*(.4+.6*m));const cb=bb*fl*(1+1.4*sh);r=(.1*cb)*(1-mm)+col[0]*mm;gg=(.75*cb)*(1-mm)+col[1]*mm;bl=(.95*cb)*(1-mm)+col[2]*mm}
-    else{lgold(m,col);const nb=.55+.9*bb,wv=clamp(sh*1.3,0,1);                    // 白色主题：休眠深蓝，活跃深琥珀，闪动时偏亮青蓝
+    const bb=.2+.5*jit[i],mm=sstep(.1,.5,m),sh=Math.min(1,bolt*1.1)*(1-gate);let r,gg,bl;   // sh：休眠时偶尔掠过的青蓝色微光
+    if(isDark){dgold(m,col,fl*(.4+.6*m));const cb=bb*fl*(1+1.6*sh);r=(.1*cb)*(1-mm)+col[0]*mm;gg=(.75*cb)*(1-mm)+col[1]*mm;bl=(.95*cb)*(1-mm)+col[2]*mm}
+    else{lgold(m,col);const nb=.55+.9*bb,wv=clamp(sh*1.4,0,1);                    // 白色主题：休眠深蓝，活跃深琥珀，微光偏亮青蓝
       r=((.02*nb)*(1-mm)+col[0]*mm)*(1-wv)+.05*wv;gg=((.14*nb)*(1-mm)+col[1]*mm)*(1-wv)+.62*wv;bl=((.22*nb)*(1-mm)+col[2]*mm)*(1-wv)+.85*wv}
     C[i*3]=r;C[i*3+1]=gg;C[i*3+2]=bl;FC[i*6]=r;FC[i*6+1]=gg;FC[i*6+2]=bl;FC[i*6+3]=r*.35;FC[i*6+4]=gg*.35;FC[i*6+5]=bl*.35}
   for(let k=0;k<S;k++){const a=A[k],b=B[k],s=Math.sqrt(mL[lay[a]]*mL[lay[b]]);
