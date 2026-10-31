@@ -29,12 +29,12 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 .scan .meta{position:absolute;left:14px;bottom:10px;right:14px;display:flex;justify-content:space-between;gap:8px;font:11px var(--mono);color:#7d8aa3;pointer-events:none}
 .scan .meta b{color:#e8c26a;font-weight:400}
 .scan{--sc-line:#1b2433}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .scan{background:radial-gradient(90% 80% at 50% 55%,#8fe0f2 0%,#46b3d2 78%);border-color:#7cc4da}
- :root:not([data-theme="dark"]) .scan h1{color:#06222e}:root:not([data-theme="dark"]) .scan .mdl,:root:not([data-theme="dark"]) .scan .meta,:root:not([data-theme="dark"]) .bar i{color:#0b3a4d}
- :root:not([data-theme="dark"]) .scan .meta b{color:#6b3f00}}
-:root[data-theme="light"] .scan{background:radial-gradient(90% 80% at 50% 55%,#8fe0f2 0%,#46b3d2 78%);border-color:#7cc4da}
-:root[data-theme="light"] .scan h1{color:#06222e}:root[data-theme="light"] .scan .mdl,:root[data-theme="light"] .scan .meta,:root[data-theme="light"] .bar i{color:#0b3a4d}
-:root[data-theme="light"] .scan .meta b{color:#6b3f00}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .scan{background:var(--panel);border-color:var(--line)}
+ :root:not([data-theme="dark"]) .scan h1{color:var(--fg)}:root:not([data-theme="dark"]) .scan .mdl,:root:not([data-theme="dark"]) .scan .meta,:root:not([data-theme="dark"]) .bar i{color:var(--mute)}
+ :root:not([data-theme="dark"]) .scan .meta b{color:var(--warn)}}
+:root[data-theme="light"] .scan{background:var(--panel);border-color:var(--line)}
+:root[data-theme="light"] .scan h1{color:var(--fg)}:root[data-theme="light"] .scan .mdl,:root[data-theme="light"] .scan .meta,:root[data-theme="light"] .bar i{color:var(--mute)}
+:root[data-theme="light"] .scan .meta b{color:var(--warn)}
 .bar{position:absolute;right:14px;top:12px;width:10px;bottom:36px;border-radius:5px;background:linear-gradient(#ff3a2c,#f9e12c,#58dc58,#08c8dc,#1e3cc8);opacity:.9}
 .bar i{position:absolute;right:16px;font:10px var(--mono);color:#7d8aa3;font-style:normal}
 .chat{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:12px}
@@ -300,8 +300,8 @@ function updateHolo(t){
     FP[i*6]=x;FP[i*6+1]=y;FP[i*6+2]=z;FP[i*6+3]=x+dx*L;FP[i*6+4]=y+dy*L;FP[i*6+5]=z+dz*L;
     const bb=.2+.5*jit[i],mm=sstep(.08,.5,m);let r,g,bl;
     if(isDark){dgold(m,col,fl*(.4+.6*m));const cb=bb*fl*(1+1.7*wave);r=(.1*cb)*(1-mm)+col[0]*mm;g=(.75*cb)*(1-mm)+col[1]*mm;bl=(.95*cb)*(1-mm)+col[2]*mm}
-    else{lgold(m,col);const nb=.55+.9*bb,wv=clamp(wave*1.3,0,1);                   // 白色主题：休眠色用深色背景的深蓝，活跃用深琥珀，信号波用亮白
-      r=((.02*nb)*(1-mm)+col[0]*mm)*(1-wv)+.95*wv;g=((.14*nb)*(1-mm)+col[1]*mm)*(1-wv)+wv;bl=((.22*nb)*(1-mm)+col[2]*mm)*(1-wv)+wv}
+    else{lgold(m,col);const nb=.55+.9*bb,wv=clamp(wave*1.3,0,1);                   // 白色主题：休眠色用深色背景的深蓝，活跃用深琥珀，信号波用亮青蓝
+      r=((.02*nb)*(1-mm)+col[0]*mm)*(1-wv)+.05*wv;g=((.14*nb)*(1-mm)+col[1]*mm)*(1-wv)+.62*wv;bl=((.22*nb)*(1-mm)+col[2]*mm)*(1-wv)+.85*wv}
     C[i*3]=r;C[i*3+1]=g;C[i*3+2]=bl;FC[i*6]=r;FC[i*6+1]=g;FC[i*6+2]=bl;FC[i*6+3]=r*.35;FC[i*6+4]=g*.35;FC[i*6+5]=bl*.35}
   for(let k=0;k<S;k++){const a=A[k],b=B[k],s=Math.sqrt(mL[lay[a]]*mL[lay[b]]);
     LP[k*6]=P[a*3];LP[k*6+1]=P[a*3+1];LP[k*6+2]=P[a*3+2];LP[k*6+3]=P[b*3];LP[k*6+4]=P[b*3+1];LP[k*6+5]=P[b*3+2];
