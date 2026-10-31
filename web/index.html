@@ -35,6 +35,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 :root[data-theme="light"] .scan{background:var(--panel);border-color:var(--line)}
 :root[data-theme="light"] .scan h1{color:var(--fg)}:root[data-theme="light"] .scan .mdl,:root[data-theme="light"] .scan .meta,:root[data-theme="light"] .bar i{color:var(--mute)}
 :root[data-theme="light"] .scan .meta b{color:var(--warn)}
+.shp{position:absolute;right:62px;top:34px;z-index:3;font:11px ui-monospace,monospace;padding:3px 9px;border-radius:12px;border:1px solid var(--line,#456);background:transparent;color:inherit;opacity:.75;cursor:pointer}.shp:hover{opacity:1}
 .bar{position:absolute;right:14px;top:12px;width:10px;bottom:36px;border-radius:5px;background:linear-gradient(#ff3a2c,#f9e12c,#58dc58,#08c8dc,#1e3cc8);opacity:.9}
 .bar i{position:absolute;right:16px;font:10px var(--mono);color:#7d8aa3;font-style:normal}
 .chat{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:12px}
@@ -104,6 +105,7 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
     <h1>Cortex</h1>
     <div class="mdl" id="scanModel"></div>
     <canvas id="hud" aria-hidden="true"></canvas>
+    <button class="shp" id="btnShape" type="button" title="切换大脑的形态：星云 / 球体">形态：星云</button>
     <div class="bar"><i style="top:-3px">高</i><i style="bottom:-3px">低</i></div>
     <div class="meta"><span id="scanSig"></span><span id="scanTps"></span></div>
   </div>
@@ -120,6 +122,7 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
         <button id="btnTrain" type="button">训练</button>
         <button id="btnWeb" type="button" aria-pressed="false" title="打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）">联网搜索</button>
         <button id="btnWebSet" type="button">搜索设置</button>
+        <button id="btnBooks" type="button" title="导入书和文档，对话时模型会先从里面查资料再回答">知识库</button>
         <button id="clear" type="button">清空对话</button>
       </div>
     </div>
@@ -226,21 +229,38 @@ function dashedRing(rad,dashes,color,op){return arcLines(rad,0,6.2832,dashes,col
 let _hdark=null;   // 白色主题下 ADD 叠加混合会让球体消失，所以换成普通混合
 function applyHoloTheme(){if(!holo||_hdark===isDark)return;_hdark=isDark;const bm=isDark?ADD:THREE.NormalBlending;
   (holo.children||[]).forEach(o=>{if(o.material){o.material.blending=bm;o.material.needsUpdate=true}})}
+let SHAPE='nebula';try{SHAPE=localStorage.getItem('cortex.shape')==='sphere'?'sphere':'nebula'}catch(_){}
+function hazeTex(){try{if(typeof document==='undefined'||!THREE.CanvasTexture)return null;const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.3,'rgba(255,255,255,.35)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)}catch(_){return null}}
+function gauss(r){return (r()+r()+r()+r()-2)*.866}   // 近似正态
+const nebPr=u=>.45+.55*Math.pow(Math.sin(Math.PI*clamp(u*.92+.04,0,1)),.6);
+const nebCx=u=>.34*Math.sin(u*5.1+.7)+.14*Math.sin(u*11+2),nebCz=u=>.34*Math.cos(u*4.3+2.1)+.14*Math.cos(u*9.7);
+function nebPt(r,u,l,sp){   // 旋臂：角度随距离卷曲，形成漩涡状的气体丝带
+  const lobe=Math.floor(r()*3),d=Math.pow(r(),.8)*nebPr(u)*1.15*(sp||1),a=lobe*2.0944+l*.07+.9*Math.sin(u*3.2+lobe*1.7)+2.4*d+gauss(r)*(.25+.5*d);
+  return [a,d,lobe]}
 function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。每层 = 球面上的一圈碎片（层数与模型真实层数一致）
   if(holo)rig.remove(holo);
   holo=new THREE.Group();rig.add(holo);PER=NL>48?44:60;
   const r=rng(21),N=NL*PER,hybrid=PAT.indexOf('L')>=0,band=2.1/Math.max(1,NL-1);
   const P=new Float32Array(N*3),C=new Float32Array(N*3),FP=new Float32Array(N*6),FC=new Float32Array(N*6);
-  const lay=new Uint8Array(N),typ=new Uint8Array(N),jit=new Float32Array(N),a0=new Float32Array(N),rad=new Float32Array(N),yo=new Float32Array(N),len=new Float32Array(N),rho=new Float32Array(N);
+  const ox=new Float32Array(N),oz=new Float32Array(N),lay=new Uint8Array(N),typ=new Uint8Array(N),jit=new Float32Array(N),a0=new Float32Array(N),rad=new Float32Array(N),yo=new Float32Array(N),len=new Float32Array(N),rho=new Float32Array(N);
   for(let l=0;l<NL;l++){const rb=Rs(l,NL)*(1+.05*Math.sin(l*1.7))*((hybrid&&PAT[l]==='L')?.94:1);
+    const u=l/Math.max(1,NL-1),neb=SHAPE==='nebula';
     for(let j=0;j<PER;j++){const i=l*PER+j,q=r();lay[i]=l;jit[i]=r();a0[i]=6.2832*(j+r()*.9)/PER+l*.11;
-      rho[i]=r()<.2?.93+.1*r():Math.pow(r(),1.7)*.92;           // 约 20% 在外壳勾出球形轮廓，其余越靠中心越密
-      rad[i]=rb*rho[i];yo[i]=(r()-.5)*band*1.7;typ[i]=q<.66?0:q<.88?1:2;len[i]=.02+.11*r()*r()*(.45+rho[i])}}
+      if(neb){ox[i]=nebCx(u);oz[i]=nebCz(u);
+        if(r()<.15){a0[i]=6.2832*r();rad[i]=Math.abs(gauss(r))*.6*nebPr(u)+.04}   // 核心附近的亮星团
+        else{const [a,d]=nebPt(r,u,l);a0[i]=a;rad[i]=d+.03}
+        rho[i]=Math.min(1.05,rad[i]/(1.1*nebPr(u)));yo[i]=gauss(r)*band*2.6*(.5+rho[i])}
+      else{yo[i]=(r()-.5)*band*1.7;const y3=Yl(l,NL)+yo[i],Hm=Math.max(.02,rb);let h=Hm;
+        if(r()<.08)h=Hm*(.96+.06*r());                            // 极少量点勾出球面轮廓
+        else for(let t=0;t<14;t++){h=Hm*Math.sqrt(r());const r3=Math.sqrt(h*h+y3*y3);if(r()<Math.exp(-Math.pow(r3/.42,1.6))+.03)break}   // 按水平面积均匀取点，再按三维离球心的距离接受：越靠近球心越密，不会沿纵轴聚集
+        rad[i]=h;rho[i]=Math.min(1.05,Math.sqrt(h*h+y3*y3)/1.0)}
+      typ[i]=q<.66?0:q<.88?1:2;len[i]=.02+.11*r()*r()*(.45+rho[i])}}
   const ch=new Uint8Array(N);for(let i=0;i<N;i++)ch[i]=(Math.floor(((a0[i]%TAU)+TAU)%TAU/TAU*8)+8*Math.min(5,Math.floor(lay[i]*6/NL)))%48;
   const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(P,3));pg.setAttribute('color',new THREE.BufferAttribute(C,3));
   holo.add(new THREE.Points(pg,new THREE.PointsMaterial({size:.045,vertexColors:true,transparent:true,blending:ADD,depthWrite:false,sizeAttenuation:true})));
   const fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.BufferAttribute(FP,3));fg.setAttribute('color',new THREE.BufferAttribute(FC,3));
-  holo.add(new THREE.LineSegments(fg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
+  // （点上的小线段已去掉，只保留点；fg 仍保留以兼容更新逻辑，但不加入场景）
   // 层间连线：稀疏的斜线，相邻两层同时活跃时发亮
   const A=[],B=[];
   const inner=l=>{const a=[];for(let j=0;j<PER;j++){const i=l*PER+j;if(rho[i]<.62)a.push(i)}return a};
@@ -248,19 +268,36 @@ function buildHolo(){ // 原创：由发光碎片组成的金色球体全息。�
     for(let k=0;k<u.length;k+=2){const i=u[k];let bi=v[0],bd=1e9;for(const w of v){let d=Math.abs(a0[w]-a0[i]);d=Math.min(d,6.2832-d);d+=Math.abs(rho[w]-rho[i])*2;if(d<bd){bd=d;bi=w}}A.push(i);B.push(bi)}}
   const S=A.length,LP=new Float32Array(S*6),LC=new Float32Array(S*6);
   const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(LP,3));lg.setAttribute('color',new THREE.BufferAttribute(LC,3));
-  holo.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
+  // （层间连线已去掉：lg 仍保留以兼容更新逻辑，但不加入场景）
   // 核心：几圈相互倾斜的金环 + 亮点
   const cores=[];[[.2,.4,0],[.3,1.2,.6],[.4,-.7,1.1]].forEach(([rr,rx,rz],k)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(rr,.005,6,90),new THREE.MeshBasicMaterial({color:0xffd070,transparent:true,opacity:.7,blending:ADD,depthWrite:false}));
-    m.rotation.set(rx,0,rz);holo.add(m);cores.push(m)});
+    m.rotation.set(rx,0,rz);cores.push(m)});
   const cdg=new THREE.BufferGeometry();cdg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3),3));
-  const coreDot=new THREE.Points(cdg,new THREE.PointsMaterial({size:.22,color:0xffc860,transparent:true,opacity:.5,blending:ADD,depthWrite:false}));holo.add(coreDot);
+  const coreDot=new THREE.Points(cdg,new THREE.PointsMaterial({size:.22,color:0xffc860,transparent:true,opacity:.5,blending:ADD,depthWrite:false}));
   // 悬浮微粒
   const D=380,DP=new Float32Array(D*3),DC=new Float32Array(D*3);
   for(let i=0;i<D;i++){const a=r()*6.2832,b=Math.acos(2*r()-1),q=.7+.9*r();DP[i*3]=Math.sin(b)*Math.cos(a)*q;DP[i*3+1]=Math.cos(b)*q;DP[i*3+2]=Math.sin(b)*Math.sin(a)*q;const k=.15+.35*r();DC[i*3]=k*.2;DC[i*3+1]=k*.8;DC[i*3+2]=k*.95}
   const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(DP,3));dg.setAttribute('color',new THREE.BufferAttribute(DC,3));
   holo.add(new THREE.Points(dg,new THREE.PointsMaterial({size:.018,vertexColors:true,transparent:true,blending:ADD,depthWrite:false})));
-  // 卫星 + 扫描环
-  H={P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,ch,S,N,pg,fg,lg,cores,coreDot,as:new Float32Array(NL)};_hdark=null;applyHoloTheme();
+  // 星云雾气：柔光精灵
+  let hz=null;
+  {const HN=1500,HP=new Float32Array(HN*3),HC=new Float32Array(HN*3),HB=new Float32Array(HN*3),hk=new Float32Array(HN),hw=new Float32Array(HN),hm2=new Float32Array(HN);
+    // 雾气跟着点走：先统计点的密度，雾气只出现在点密集的地方（球体还要越靠近球面越淡，球面附近没有雾气）
+    const fx=new Float32Array(N),fy=new Float32Array(N),fz=new Float32Array(N),CS=.28,cnt=new Map(),key=(x,y,z)=>Math.floor(x/CS)+','+Math.floor(y/CS)+','+Math.floor(z/CS);
+    for(let i=0;i<N;i++){fx[i]=ox[i]+Math.cos(a0[i])*rad[i];fz[i]=oz[i]+Math.sin(a0[i])*rad[i];fy[i]=Yl(lay[i],NL)+yo[i];const k=key(fx[i],fy[i],fz[i]);cnt.set(k,(cnt.get(k)||0)+1)}
+    const dens=(x,y,z)=>{let c=0;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)for(let d=-1;d<=1;d++)c+=cnt.get(key(x+a*CS,y+b*CS,z+d*CS))||0;return c};
+    const ds=[];for(let i=0;i<N;i+=3)ds.push(dens(fx[i],fy[i],fz[i]));ds.sort((p,q)=>p-q);const ref=Math.max(4,ds[Math.floor(ds.length*.85)]||4);
+    const PAL=[[.95,.25,.55],[.2,.75,.95],[.5,.3,.95],[.15,.9,.7]],neb=SHAPE==='nebula';
+    for(let i=0;i<HN;i++){const j=Math.floor(r()*N),x=fx[j]+gauss(r)*.09,y=fy[j]+gauss(r)*.09,z=fz[j]+gauss(r)*.09;
+      HP[i*3]=x;HP[i*3+1]=y;HP[i*3+2]=z;hk[i]=r();
+      let w=clamp(dens(x,y,z)/ref,0,1);w=w*w*(3-2*w);if(!neb)w=Math.min(1,w*1.5)*Math.pow(Math.max(0,1-rho[j]/.95),.9);hw[i]=w;
+      let c;if(neb){const lobe=Math.floor(r()*3);c=PAL[(lobe+(r()<.25?1:0))%4];hm2[i]=w*w}
+      else c=[.15+.1*hk[i],.6+.2*hk[i],.9];
+      HB[i*3]=c[0];HB[i*3+1]=c[1];HB[i*3+2]=c[2]}
+    const hg=new THREE.BufferGeometry();hg.setAttribute('position',new THREE.BufferAttribute(HP,3));hg.setAttribute('color',new THREE.BufferAttribute(HC,3));
+    const tex=hazeTex(),hm=new THREE.PointsMaterial({size:.62,vertexColors:true,transparent:true,blending:ADD,depthWrite:false,sizeAttenuation:true,opacity:.3});if(tex)hm.map=tex;
+    holo.add(new THREE.Points(hg,hm));hz={HN,HP,HC,HB,hk,hw,hm2,hg,hm}}
+  H={hz,ox,oz,P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,ch,S,N,pg,fg,lg,cores,coreDot,as:new Float32Array(NL)};_hdark=null;applyHoloTheme();
 }
 let rotY=.5,rotX=.16,vy=.002,drag=false,px0=0,py0=0;
 // ---- 球体 = 电脑硬件占用 + 大脑皮层：占用越高，"思考的电信号"越频繁。信号像闪电一样沿球面掠过各个区域，带分叉和渐隐的尾迹
@@ -298,28 +335,29 @@ function spawnEvent(t,as,tot){
     makeBolt(t+dur*k0/(BK-1),p,.4+.7*Math.random(),dur*.55,b.tail*.8,b.amp*.7)}
   while(BOLTS.length>14)BOLTS.shift()}
 function updateHolo(t){
-  const {P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N}=H,fl=.92+.08*Math.sin(t*.012)*Math.sin(t*.0047),sec=t*.0005,col=[0,0,0],dt=Math.min(100,Math.max(0,t-(H.t0||t)));H.t0=t;
+  const {P,C,FP,FC,LP,LC,A,B,lay,typ,jit,a0,rad,yo,len,rho,S,N,ox,oz}=H,neb=SHAPE==="nebula",fl=.92+.08*Math.sin(t*.012)*Math.sin(t*.0047),sec=t*.0005,col=[0,0,0],dt=Math.min(100,Math.max(0,t-(H.t0||t)));H.t0=t;
   const cs=new Float32Array(NL),sn=new Float32Array(NL),mL=new Float32Array(NL);let mean=0,tot=0;
-  for(let l=0;l<NL;l++){const th=(l%2?1:-1)*sec*(.1+.09*((l*7)%5)/4);cs[l]=Math.cos(th);sn[l]=Math.sin(th);mean+=act[l]}mean/=NL;
+  for(let l=0;l<NL;l++){const th=neb?sec*(.7+.45*Math.sin(l*.3)):(l%2?1:-1)*sec*(.1+.09*((l*7)%5)/4);cs[l]=Math.cos(th);sn[l]=Math.sin(th);mean+=act[l]}mean/=NL;
   uS+=(hwLevel(mean)-uS)*(1-Math.pow(.5,dt/700));            // 平滑：占用变化时球体缓缓过渡
+  H.run=(H.run||0)+(((busy||trainRunning)?1:0)-(H.run||0))*(1-Math.pow(.5,dt/500));const run=H.run,uE=Math.max(uS,.4)*run;   // 只有模型真正在运行（回复或训练）时才有放电/变色，静止时完全不出现
   kick*=Math.pow(.5,dt/500);
   const as=H.as;for(let l=0;l<NL;l++){as[l]+=(act[l]-as[l])*(1-Math.pow(.5,dt/(act[l]>as[l]?180:650)));tot+=as[l]}   // 层活动取平滑值
-  if(Math.random()<dt/1000*(.15+1.7*uS+1.2*kick))spawnEvent(t,as,tot);                                              // 占用越高，信号越频繁
+  if(run>.05&&Math.random()<dt/1000*(.15+1.7*uE+1.2*kick))spawnEvent(t,as,tot);                                              // 占用越高，信号越频繁
   // 收集所有"亮着"的路径点（位置 + 亮度）
   const ax=[],ay=[],az=[],aw=[];
   for(let q=BOLTS.length-1;q>=0;q--){const b=BOLTS[q],age=t-b.t0;if(age>b.dur+b.tail){BOLTS.splice(q,1);continue}if(age<0)continue;
     for(let k=0;k<BK;k++){const tp=age-b.dur*k/(BK-1);if(tp<0||tp>b.tail)continue;
       const f=1-tp/b.tail,w=b.amp*f*f*(tp<160?1.4-tp/400:1);if(w>.03){ax.push(b.pts[k*3]);ay.push(b.pts[k*3+1]);az.push(b.pts[k*3+2]);aw.push(w)}}}
-  const na=aw.length,gate=sstep(0,.45,uS),sig2=.05;
-  const bp=Math.sin(t*.0016*(1+.7*uS)),br=1+(.1+.3*uS)*bp;                       // 核心亮度起伏（不改变球体大小）
+  const na=aw.length,gate=sstep(0,.45,uE),sig2=neb?.05:.075;
+  const bp=Math.sin(t*.0016*(1+.7*uE)),br=1+(.1+.3*uE)*bp;                       // 核心亮度起伏（不改变球体大小）
   for(let i=0;i<N;i++){const l=lay[i],ca=Math.cos(a0[i]),sa=Math.sin(a0[i]),ux=ca*cs[l]-sa*sn[l],uz=sa*cs[l]+ca*sn[l],R=rad[i],y=Yl(l,NL)+yo[i];
-    const x=ux*R,z=uz*R;P[i*3]=x;P[i*3+1]=y;P[i*3+2]=z;
+    const x=ox[i]+ux*R,z=oz[i]+uz*R;P[i*3]=x;P[i*3+1]=y;P[i*3+2]=z;
     const il=1/(Math.sqrt(x*x+y*y+z*z)+1e-6),dx0=x*il,dy0=y*il,dz0=z*il;let bolt=0;
     for(let k=0;k<na;k++){const ex=dx0-ax[k],ey=dy0-ay[k],ez=dz0-az[k],d2=ex*ex+ey*ey+ez*ez;if(d2<sig2){const q=1-d2/sig2;bolt+=aw[k]*q*q}}
-    bolt=Math.min(1,bolt)*(.45+.55*Math.min(1,rho[i]/.9));                       // 越靠外层（皮层）越亮，球心的碎片只微微泛光
+    bolt=Math.min(1,bolt)*(neb?.45+.55*Math.min(1,rho[i]/.9):.8+.2*Math.min(1,rho[i]/.9));                       // 越靠外层（皮层）越亮，球心的碎片只微微泛光
     const amb=.18*clamp(Math.sin(x*3.1+y*1.7+t*.00031+1.3)*.5+Math.sin(y*2.9-z*2.3+t*.00023+4.1)*.5+.15,0,1);   // 极淡的、缓慢漂移的背景微光
-    const m=clamp(gate*(Math.pow(bolt,1.15)*1.5+amb*.7)+as[l]*(.1+.2*uS)*.5,0,1);mL[l]+=m/PER;
-    const L=len[i]*(1+1.2*m),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
+    const m=clamp(gate*(Math.pow(bolt,1.15)*(neb?1.5:2.4)+amb*.7)+as[l]*(.1+.2*uE)*.5,0,1);mL[l]+=m/PER;
+    const L=len[i]*(1+1.2*m)*(neb?.7:1),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
     FP[i*6]=x;FP[i*6+1]=y;FP[i*6+2]=z;FP[i*6+3]=x+dx*L;FP[i*6+4]=y+dy*L;FP[i*6+5]=z+dz*L;
     const bb=(.2+.5*jit[i])*(1-.5*gate*(1-sstep(0,.5,m))),mm=sstep(.1,.45,m),sh=Math.min(1,bolt*1.1)*(1-gate);let r,gg,bl;   // sh：休眠时偶尔掠过的青蓝色微光
     if(isDark){dgold(m,col,fl*(.45+.75*m));const cb=bb*fl*(1+1.6*sh);r=(.1*cb)*(1-mm)+col[0]*mm;gg=(.75*cb)*(1-mm)+col[1]*mm;bl=(.95*cb)*(1-mm)+col[2]*mm}
@@ -333,10 +371,19 @@ function updateHolo(t){
     else{lgold(.3+.7*s,col);r=.02*(1-mm)+col[0]*mm;g=.2*(1-mm)+col[1]*mm;bl=.3*(1-mm)+col[2]*mm}
     LC[k*6]=r;LC[k*6+1]=g;LC[k*6+2]=bl;LC[k*6+3]=r;LC[k*6+4]=g;LC[k*6+5]=bl}
   for(const g of [H.pg,H.fg,H.lg]){g.attributes.position.needsUpdate=true;g.attributes.color.needsUpdate=true}
+  if(H.hz){const {HN,HP,HC,HB,hk,hw,hm2,hg}=H.hz;
+    for(let i=0;i<HN;i++){const x=HP[i*3],y=HP[i*3+1],z=HP[i*3+2],il=1/(Math.sqrt(x*x+y*y+z*z)+1e-6),dx0=x*il,dy0=y*il,dz0=z*il,w=hw[i];let b=0;
+      for(let k=0;k<na;k++){const ex=dx0-ax[k],ey=dy0-ay[k],ez=dz0-az[k],d2=ex*ex+ey*ey+ez*ez;if(d2<sig2*2){const q=1-d2/(sig2*2);b+=aw[k]*q*q}}
+      b=Math.min(1,b)*gate;const br0=(.16+.1*Math.sin(t*.0004+hk[i]*40)+.05*uE)*w*(neb?1.6:3.4),gl=(neb?.45:.75)*b*w;
+      const wm=hm2[i]*gate;   // 核心偏暖金只在模型工作（占用高）时出现，休眠时保持冷色
+      for(let c=0;c<3;c++){const base=HB[i*3+c]*(1-wm)+[1,.72,.35][c]*wm;
+        if(isDark)HC[i*3+c]=base*br0*(1-b)+[1,.62,.2][c]*gl;
+        else HC[i*3+c]=(1-(1-base)*.7*w*(1-b*.6))*(1-b*w)+[.7,.4,.05][c]*b*w}}
+    hg.attributes.color.needsUpdate=true;H.hz.hm.opacity=neb?(isDark?.34:.15):(isDark?.5:.24)}
   // 核心：休眠时青蓝，占用高时偏暗金
-  const kk=sstep(.08,.75,uS),tc=isDark?lerp3(CY,GD,kk):lerp3([.02,.16,.25],[.8,.48,.04],kk);
-  H.cores.forEach((m,i)=>{m.rotation.y=sec*(.8+.4*i)*(i%2?-1:1);m.material.color.setRGB(tc[0],tc[1],tc[2]);m.material.opacity=.3+.55*Math.min(1,uS*1.4)});
-  H.coreDot.material.color.setRGB(tc[0],tc[1],tc[2]);H.coreDot.material.opacity=.25+.55*Math.min(1,uS*1.5)*br;H.coreDot.material.size=.16+.24*Math.min(1,uS*1.5);
+  const kk=sstep(.08,.75,uE),tc=isDark?lerp3(CY,GD,kk):lerp3([.02,.16,.25],[.8,.48,.04],kk);
+  H.cores.forEach((m,i)=>{m.rotation.y=sec*(.8+.4*i)*(i%2?-1:1);m.material.color.setRGB(tc[0],tc[1],tc[2]);m.material.opacity=.3+.55*Math.min(1,uE*1.4)});
+  H.coreDot.material.color.setRGB(tc[0],tc[1],tc[2]);H.coreDot.material.opacity=.25+.55*Math.min(1,uE*1.5)*br;H.coreDot.material.size=.16+.24*Math.min(1,uE*1.5);
 }
 // 刻度尺与层号（2D 叠加层）：随模型真实层数变化，每 5 层一个标签
 const _v=THREE.Vector3?new THREE.Vector3():null;
@@ -359,6 +406,8 @@ cv.addEventListener('pointerdown',e=>{drag=true;px0=e.clientX;py0=e.clientY;cv.s
 cv.addEventListener('pointermove',e=>{if(!drag)return;rotY+=(e.clientX-px0)*.008;rotX=clamp(rotX+(e.clientY-py0)*.005,-.9,.9);px0=e.clientX;py0=e.clientY;vy=0});
 cv.addEventListener('pointerup',()=>{drag=false;cv.style.cursor='grab';vy=.002});
 buildHolo();
+function setShape(v){SHAPE=v;try{localStorage.setItem('cortex.shape',v)}catch(_){}const b=$('btnShape');if(b)b.textContent=v==='nebula'?'形态：星云':'形态：球体';buildHolo()}
+{const b=$('btnShape');if(b){b.textContent=SHAPE==='nebula'?'形态：星云':'形态：球体';b.addEventListener('click',()=>setShape(SHAPE==='nebula'?'sphere':'nebula'))}}
 
 // ======== 神经网络层图：矩阵点阵 + 层间连线 + 脉冲 ========
 const CELL=5,TILE=CELL*G,COLW=TILE+44,TOP=26,ROWH=TILE+14;
@@ -432,6 +481,7 @@ $('step').onclick=trainStep;
 
 // ======== 聊天 ========
 const history=[];
+let BOOKS=false;try{BOOKS=localStorage.getItem('cortex.books')==='1'}catch(_){}
 let WEB=false;try{WEB=localStorage.getItem('cortex.web')==='1'}catch(_){}
 function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function render(el,text){ // 极简：``` 代码块
@@ -453,7 +503,7 @@ async function send(text){
   const el=addMsg('a','');let out='',gotEnergy=false,st=null,srcs=null;
   try{
     if(LIVE&&active){
-      const r=await fetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:active,stream:true,web:WEB,messages:history,max_tokens:1024})});
+      const r=await fetch('/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:active,stream:true,web:WEB,books:BOOKS,messages:history,max_tokens:1024})});
       if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||r.status)}
       const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
       for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
@@ -461,7 +511,7 @@ async function send(text){
           const o=JSON.parse(p);if(o.error)throw new Error(o.error);const d=o.choices&&o.choices[0].delta;
           if(d&&d.content){out+=d.content;render(el,out);$('msgs').scrollTop=1e9}
           if(o.cortex&&o.cortex.status){if(!st){st=document.createElement('div');st.className='m sys';el.after(st)}st.textContent='🌐 '+o.cortex.status}
-          if(o.cortex&&o.cortex.sources)srcs=o.cortex.sources;
+          if(o.cortex&&o.cortex.sources)srcs=(srcs||[]).concat(o.cortex.sources);
           if(o.cortex){if(o.cortex.energy){gotEnergy=true;pushEnergy(o.cortex.energy,o.cortex.simulated)}if(o.cortex.tps)$('scanTps').textContent=o.cortex.tps+' tok/s'}}}
     }else{ // 演示：不连接任何模型
       const demo="这是演示回复：页面没有连接到本地服务，所以回答和各层的活动都是模拟的。\n\n在 Mac 上运行 `uv run --extra mlx cortex serve --model devstral-small-2` 后打开 http://127.0.0.1:8765，这里就会显示 Devstral 真实生成的文字，大脑图和网络层会用它真实的逐层活动着色。";
@@ -470,7 +520,7 @@ async function send(text){
         const c=(k*2.7)%(NL+8)-4;pushEnergy(Array.from({length:NL},(_,i)=>Math.exp(-(((i-c)/3)**2))*(.65+.35*((i*7+k)%5)/4)),true);k++;await new Promise(r=>setTimeout(r,45))}
     }
     if(srcs&&srcs.length){const d=document.createElement('div');d.className='m sys';d.style.textAlign='left';
-      d.append('来源：');srcs.forEach((x,i)=>{const a=document.createElement('a');a.href=x.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=`[${i+1}] ${x.title||x.url}`;a.style.marginRight='10px';d.appendChild(a)});
+      d.append('来源：');srcs.forEach((x,i)=>{const a=document.createElement(x.url?'a':'span');if(x.url)a.href=x.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=`[${i+1}] ${x.title||x.url}`;a.style.marginRight='10px';d.appendChild(a)});
       (st||el).after(d)}
     if(st)st.textContent='🌐 已联网搜索';
     history.push({role:'assistant',content:out});
@@ -496,6 +546,28 @@ $('btnWebSet').onclick=async()=>{
   $('wtest').onclick=async()=>{$('werr').textContent='';$('wres').textContent='正在测试…';try{await api('/api/search',cfg());const r=await api('/api/search/test',{q:'Apple MLX'});
     if(r.ok){$('wres').textContent='成功，第一条结果：'+(r.results[0]?r.results[0].title:'(空)')}else{$('wres').textContent='';$('werr').textContent=r.error}}catch(er){$('wres').textContent='';$('werr').textContent=er.message}}
 };
+function setBooks(v){BOOKS=v;try{localStorage.setItem('cortex.books',v?'1':'0')}catch(_){}$('btnBooks').textContent=v?'知识库：开':'知识库'}
+setBooks(BOOKS);
+const escA=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const b64of=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]||'');r.onerror=()=>no(new Error('读取文件失败'));r.readAsDataURL(f)});
+let bkArm=null;
+async function renderBooks(msg){
+  let list=[];try{list=(await api('/api/books')).books}catch(e){msg=e.message}
+  const tot=list.filter(b=>b.enabled).reduce((a,b)=>a+b.chunks,0);
+  $('mbody').innerHTML=`<p class="hint">把书和文档导入到这里，对话时模型会先从书里找出相关段落再回答，并标出引用的是哪本书的第几段。全部在你自己的电脑上处理，不会上传。支持 txt / md / html / epub / docx / 代码文件；PDF 需要电脑里装有 pypdf 或 pdftotext，否则请先导出为 txt 或 epub。</p>
+   <label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="bkOn" ${BOOKS?'checked':''}> 聊天时使用知识库${tot?`（当前启用 ${tot} 段）`:''}</label>
+   <div class="row"><input type="file" id="bkFile" multiple accept=".txt,.md,.markdown,.rst,.html,.htm,.epub,.docx,.pdf,.py,.js,.ts,.c,.cpp,.h,.java,.go,.rs,.swift,.json,.csv,.tex" aria-label="选择要导入的书"></div>
+   <div class="err" id="bkErr"></div><div class="hint" id="bkRes">${escA(msg||'')}</div>
+   <div id="bkList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px">${list.length?list.map(b=>`<div class="row" style="justify-content:space-between;gap:8px"><label style="display:flex;gap:8px;align-items:center;min-width:0"><input type="checkbox" data-en="${b.id}" ${b.enabled?'checked':''}><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escA(b.title)}</span></label><span class="hint">${b.chunks} 段 · ${(b.chars/1e4).toFixed(1)} 万字</span><button type="button" data-rm="${b.id}">${bkArm===b.id?'再点一次确认':'删除'}</button></div>`).join(''):'<div class="hint">还没有导入任何书。</div>'}</div>`;
+  $('bkOn').onchange=e=>{setBooks(e.target.checked);sysMsg(BOOKS?'已开启知识库：回答前会先从你导入的书里查资料。':'已关闭知识库。')};
+  document.querySelectorAll('[data-en]').forEach(c=>c.onchange=async()=>{try{await api('/api/books/enable',{id:c.dataset.en,on:c.checked});renderBooks()}catch(e){$('bkErr').textContent=e.message}});
+  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{if(bkArm!==b.dataset.rm){bkArm=b.dataset.rm;renderBooks();return}bkArm=null;try{await api('/api/books/remove',{id:b.dataset.rm})}catch(e){}renderBooks('已删除。')});
+  $('bkFile').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;let ok=0,errs=[];
+    for(const f of fs){$('bkRes').textContent=`正在导入 ${f.name}（${ok+errs.length+1}/${fs.length}），大书需要一会儿…`;
+      try{if(f.size>55e6)throw new Error('文件超过 55MB');const m=await api('/api/books/add',{name:f.name.replace(/\.[^.]+$/,''),filename:f.name,data:await b64of(f)});ok++;if(!BOOKS)setBooks(true)}catch(er){errs.push(f.name+'：'+er.message)}}
+    await renderBooks(`导入完成：成功 ${ok} 本${errs.length?'，失败 '+errs.length+' 本':''}。`);if(errs.length)$('bkErr').textContent=errs.join('；')}
+}
+$('btnBooks').onclick=()=>{if(!LIVE){openOv('知识库');$('mbody').innerHTML=needLive();return}openOv('知识库');renderBooks()};
 $('clear').onclick=()=>{history.length=0;$('msgs').innerHTML='';sysMsg(LIVE?'已清空。':'已清空（演示模式）。')};
 $('adapter').addEventListener('change',()=>{if(LIVE&&active)selectModel(active,$('adapter').value||null)});
 $('model').addEventListener('change',()=>{const k=$('model').value;if(!k)return;

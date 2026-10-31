@@ -27,12 +27,13 @@ from ..config import PROJECT_ROOT, Config, hf_cache_dir
 from .chat import DemoChat
 from .library import Library
 from . import websearch
+from .books import Books, BookError, with_reference
 from .search import SearchError, Searcher
 from .hardware import Hardware
 from .training import Datasets, Trainer, adapter_delta
 
 WEB_DIR = PROJECT_ROOT / "web"
-BIG_BODY = {"/api/train/dataset": 60_000_000}
+BIG_BODY = {"/api/train/dataset": 60_000_000, "/api/books/add": 80_000_000}
 
 
 class NotDownloaded(Exception):
@@ -134,6 +135,7 @@ class State:
         self._custom_loader = loader
         self.library = library or Library(cfg, cfg.data_dir, hf_cache_dir(cfg))
         self.datasets = Datasets(cfg.data_dir / "datasets")
+        self.books = Books(cfg.data_dir / "books")
         self.trainer = trainer or Trainer(cfg.data_dir, self.datasets, spawn)
         self.delta_fn = delta_fn or adapter_delta
         self.dumps: dict[str, dict] = {}
@@ -359,6 +361,8 @@ def make_handler(state: State):
                     self._json({"error": "no weight sample"}, 404)
             elif p == "/api/search":
                 self._guard(lambda: self._json(state.search_config()))
+            elif p == "/api/books":
+                self._guard(lambda: self._json({"books": state.books.list()}))
             elif p == "/api/hw":
                 self._guard(lambda: self._json(state.hardware.sample()))
             elif p == "/api/train/datasets":
@@ -396,6 +400,12 @@ def make_handler(state: State):
                 "/api/library/delete": lambda: self._json({"freed": self._delete(str(body.get("key", "")))}),
                 "/api/search": lambda: self._json(state.set_search_config(
                     str(body.get("provider", "duckduckgo")), str(body.get("searxng_url", "")))),
+                "/api/books/add": lambda: self._json(state.books.add_b64(
+                    str(body.get("name", "")), str(body.get("filename", "")), str(body.get("data", "")))),
+                "/api/books/remove": lambda: (state.books.remove(str(body.get("id", ""))), self._json({"ok": True})),
+                "/api/books/enable": lambda: (state.books.set_enabled(str(body.get("id", "")), bool(body.get("on"))),
+                                              self._json({"ok": True})),
+                "/api/books/search": lambda: self._json({"hits": state.books.search(str(body.get("q", "")), 5)}),
                 "/api/search/test": lambda: self._json(self._search_test(str(body.get("q", "")))),
                 "/api/library/weights": lambda: self._json(state.dump_weights(str(body.get("key", "")))),
                 "/api/train/dataset": lambda: self._json(state.datasets.create(str(body.get("name", "")), body.get("files") or [])),
@@ -466,11 +476,23 @@ def make_handler(state: State):
                 return state.worker.stream(lambda: backend.stream_chat(
                     msgs, max_tokens=max_tokens, temperature=temperature))
 
+            use_books = bool(body.get("books")) and not simulated and state.books.has_any()
+            msgs_in = messages
+            book_src: list[dict] = []
+            if use_books:
+                q = next((m.get("content") for m in reversed(messages) if m.get("role") == "user"), "")
+                hits = state.books.search(q if isinstance(q, str) else "", 5)
+                if hits:
+                    msgs_in = with_reference(messages, hits)
+                    book_src = [{"title": f"《{h['book']}》第 {h['n']} 段", "url": ""} for h in hits]
+
             def events():
+                if book_src:
+                    yield {"type": "sources", "items": book_src}
                 if use_web:
-                    yield from websearch.run(chat, messages, state.searcher())
+                    yield from websearch.run(chat, msgs_in, state.searcher())
                 else:
-                    for c in chat(messages):
+                    for c in chat(msgs_in):
                         yield {"type": "text", "text": c["text"], "energy": c.get("energy"), "tps": c.get("tps")}
 
             with state.lock:
