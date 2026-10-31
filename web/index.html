@@ -273,9 +273,9 @@ function hwLevel(mean){
   return clamp(.1+1.2*mean,0,1)   // 演示模式或读不到硬件：用模型自己的活动代替
 }
 const CY=[.31,.85,.96],GD=[1,.68,.22],lerp3=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
-const LGOLD=[[.3,.17,.02],[.55,.32,.03],[.78,.46,.04],[.95,.6,.08]];   // 白色主题用的深琥珀色
+const LGOLD=[[.4,.22,.02],[.7,.4,.02],[.9,.5,0],[1,.62,.04]];   // 白色主题用的深琥珀色
 function lgold(e,o){e=clamp(e,0,1)*3;const i=Math.min(2,e|0),f=e-i,a=LGOLD[i],b=LGOLD[i+1];o[0]=a[0]+(b[0]-a[0])*f;o[1]=a[1]+(b[1]-a[1])*f;o[2]=a[2]+(b[2]-a[2])*f}
-const DGOLD=[[.22,.12,.02],[.6,.36,.05],[.92,.58,.12],[1,.74,.3]];   // 暗金色，不会变成白色
+const DGOLD=[[.3,.16,.02],[.75,.45,.06],[1,.68,.14],[1,.88,.5]];   // 暗金色，不会变成白色
 function dgold(e,o,k){e=clamp(e,0,1)*3;const i=Math.min(2,e|0),f=e-i,a=DGOLD[i],b=DGOLD[i+1];o[0]=(a[0]+(b[0]-a[0])*f)*k;o[1]=(a[1]+(b[1]-a[1])*f)*k;o[2]=(a[2]+(b[2]-a[2])*f)*k}
 const TAU=6.2832;
 // —— 闪电式信号：球面上一条带抖动的路径，亮头沿路径前进，身后留下渐隐的尾迹，中途可能分叉
@@ -318,11 +318,11 @@ function updateHolo(t){
     for(let k=0;k<na;k++){const ex=dx0-ax[k],ey=dy0-ay[k],ez=dz0-az[k],d2=ex*ex+ey*ey+ez*ez;if(d2<sig2){const q=1-d2/sig2;bolt+=aw[k]*q*q}}
     bolt=Math.min(1,bolt)*(.45+.55*Math.min(1,rho[i]/.9));                       // 越靠外层（皮层）越亮，球心的碎片只微微泛光
     const amb=.18*clamp(Math.sin(x*3.1+y*1.7+t*.00031+1.3)*.5+Math.sin(y*2.9-z*2.3+t*.00023+4.1)*.5+.15,0,1);   // 极淡的、缓慢漂移的背景微光
-    const m=clamp(gate*(bolt*1.15+amb)+as[l]*(.1+.2*uS)*.5,0,1);mL[l]+=m/PER;
-    const L=len[i]*(1+.6*m),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
+    const m=clamp(gate*(Math.pow(bolt,1.15)*1.5+amb*.7)+as[l]*(.1+.2*uS)*.5,0,1);mL[l]+=m/PER;
+    const L=len[i]*(1+1.2*m),ty=typ[i],dx=ty===0?-uz:ty===2?ux:0,dy=ty===1?1:0,dz=ty===0?ux:ty===2?uz:0;
     FP[i*6]=x;FP[i*6+1]=y;FP[i*6+2]=z;FP[i*6+3]=x+dx*L;FP[i*6+4]=y+dy*L;FP[i*6+5]=z+dz*L;
-    const bb=.2+.5*jit[i],mm=sstep(.1,.5,m),sh=Math.min(1,bolt*1.1)*(1-gate);let r,gg,bl;   // sh：休眠时偶尔掠过的青蓝色微光
-    if(isDark){dgold(m,col,fl*(.4+.6*m));const cb=bb*fl*(1+1.6*sh);r=(.1*cb)*(1-mm)+col[0]*mm;gg=(.75*cb)*(1-mm)+col[1]*mm;bl=(.95*cb)*(1-mm)+col[2]*mm}
+    const bb=(.2+.5*jit[i])*(1-.5*gate*(1-sstep(0,.5,m))),mm=sstep(.1,.45,m),sh=Math.min(1,bolt*1.1)*(1-gate);let r,gg,bl;   // sh：休眠时偶尔掠过的青蓝色微光
+    if(isDark){dgold(m,col,fl*(.45+.75*m));const cb=bb*fl*(1+1.6*sh);r=(.1*cb)*(1-mm)+col[0]*mm;gg=(.75*cb)*(1-mm)+col[1]*mm;bl=(.95*cb)*(1-mm)+col[2]*mm}
     else{lgold(m,col);const nb=.55+.9*bb,wv=clamp(sh*1.4,0,1);                    // 白色主题：休眠深蓝，活跃深琥珀，微光偏亮青蓝
       r=((.02*nb)*(1-mm)+col[0]*mm)*(1-wv)+.05*wv;gg=((.14*nb)*(1-mm)+col[1]*mm)*(1-wv)+.62*wv;bl=((.22*nb)*(1-mm)+col[2]*mm)*(1-wv)+.85*wv}
     C[i*3]=r;C[i*3+1]=gg;C[i*3+2]=bl;FC[i*6]=r;FC[i*6+1]=gg;FC[i*6+2]=bl;FC[i*6+3]=r*.35;FC[i*6+4]=gg*.35;FC[i*6+5]=bl*.35}
