@@ -81,6 +81,7 @@ function drawLens(){
   v.innerHTML=`<table><tbody>${layers.map(l=>`<tr><th>L${l}</th>${cols.map((i,c)=>cell(i,l,c)).join('')}</tr>`).join('')}
     <tr class="out"><th>输出</th>${cols.map(i=>`<td data-i="${i}" class="${i===CUR?'cur':''}"${isPart(ftok(F[i]))?' title="◇ = 一个汉字或符号的一部分（多字节编码的片段），合起来才是完整的字"':''}>${escH(dispOut(F[i]))}</td>`).join('')}</tr>
     <tr class="lk"><th>定下来</th>${locks.map((L,c)=>`<td data-i="${cols[c]}">${L==null?'—':'L'+L}</td>`).join('')}</tr></tbody></table>`;
+  const lkh=(v.querySelector('tr.lk')||{}).offsetHeight||0;v.querySelectorAll('tr.out td,tr.out th').forEach(e=>e.style.bottom=lkh+'px');   // “输出”行紧贴在“定下来”行上方
   v.querySelectorAll('td[data-i]').forEach(td=>td.onclick=()=>tlPick(+td.dataset.i))}
 
 // ---- 训练结果回看：“训练”视图里随时查看任意一个适配器真实改动了哪些层
