@@ -5,7 +5,7 @@ const showTok=t=>JSON.stringify(String(t)).slice(1,-1).replace(/\\"/g,'"')||'∅
 
 // ---- 信号显示方式
 function setSig(raw){SIGRAW=raw;try{localStorage.setItem('neurolume.sig',raw?'raw':'enh')}catch(_){}$('btnSig').textContent=raw?'显示：原始':'显示：增强'}
-setSig(SIGRAW);$('btnSig').onclick=()=>setSig(!SIGRAW);
+setSig(SIGRAW);$('btnSig').onclick=()=>{setSig(!SIGRAW);if(typeof tlPick==='function'){if(CUR>=0)tlPick(CUR);else tlRender()}};   // 切换后立刻重画时间轴和定格的层图
 
 // ---- 回答时间轴：整段回答的逐字 × 逐层活动热力图，可以拖动回看任意一个字；逐层预测表跟着它走
 // 数据来源：在对话里选中一段 AI 回答 → 只看选中的部分；没有选中 → 最近一次回答的全部内容
