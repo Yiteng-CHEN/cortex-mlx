@@ -3,12 +3,28 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cortex"
-version = "0.1.0"
-description = "Local self-evolving coding assistant with a brain visualizer"
+name = "neurolume"
+version = "0.2.0"
+description = "Watch your model learn: fine-tune LLMs on your Mac in a few clicks and see, layer by layer, what training changed."
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = []          # core is stdlib-only (D9)
+keywords = ["llm", "fine-tuning", "lora", "mlx", "apple-silicon", "interpretability", "visualization", "local-ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/Yiteng-CHEN/neurolume"
+Issues = "https://github.com/Yiteng-CHEN/neurolume/issues"
 
 [project.optional-dependencies]
 # Apple Silicon only. Lower bound: MLX 0.32.4 added Gated DeltaNet / SDPA gradients (D13).
@@ -18,7 +34,10 @@ mlx = [
 ]
 
 [project.scripts]
-cortex = "cortex.cli:main"
+neurolume = "neurolume.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+neurolume = ["defaults.toml", "web/*", "web/**/*"]

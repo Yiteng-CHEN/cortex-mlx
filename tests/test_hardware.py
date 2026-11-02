@@ -3,7 +3,7 @@ import threading
 import unittest
 import urllib.request
 
-from cortex.server.hardware import Hardware, parse_gpu, parse_vm_stat
+from neurolume.server.hardware import Hardware, parse_gpu, parse_vm_stat
 
 IOREG = '''| |   "PerformanceStatistics" = {"Device Utilization %"=37,"In use system memory"=123,"Renderer Utilization %"=30}
 | |   "PerformanceStatistics" = {"Device Utilization %"=5}'''
@@ -40,10 +40,10 @@ class TestHardware(unittest.TestCase):
         self.assertIsNone(s["mem_pct"])
 
     def test_endpoint(self):
-        from cortex.config import load_config
-        from cortex.server.app import serve
+        from neurolume.config import load_config
+        from neurolume.server.app import serve
         httpd = serve(load_config(), port=0, block=False)
-        httpd.cortex_state.hardware = Hardware(run=fake_run)
+        httpd.neurolume_state.hardware = Hardware(run=fake_run)
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         j = json.load(urllib.request.urlopen(f"http://127.0.0.1:{httpd.server_address[1]}/api/hw"))
         self.assertEqual(j["gpu"], 0.37)

@@ -1,109 +1,112 @@
-# Cortex
+<div align="center">
 
-**看见本地大模型思考和学习的过程。** 在你的 Mac 上和模型聊天，生成时逐层看到每一层亮起；一键下载、切换模型；用向导训练 LoRA，并看到哪些权重真的变了。
+# Neurolume
 
-简体中文 · [English](README.md)
+**看着你的模型学习。**
+在 Mac 上点几下就能微调大模型，并且一层一层地看到训练到底改变了什么。
 
-> **状态：早期 alpha。** 工具、服务和界面已写好并通过单元测试（64 个）。模型加载和 LoRA 训练在一台机器上做过基准测试（MacBook Pro M5 Max，128 GB）。实时逐层活动探针和界面里的训练流程**还没有完整的真机运行记录**，可能有粗糙之处，欢迎提 issue。
+[![CI](https://github.com/Yiteng-CHEN/neurolume/actions/workflows/ci.yml/badge.svg)](https://github.com/Yiteng-CHEN/neurolume/actions/workflows/ci.yml)
+![Platform](https://img.shields.io/badge/platform-Apple%20Silicon-black)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-## 它能做什么
+[English](README.md) · 简体中文
 
-- **和真实层数一致的 3D 视图。** 每个 Transformer 层是一圈发光节点，叠成一根全息立柱。圈数就是模型的真实层数（Devstral Small 2 是 40 层，Qwen3.6-27B 是 64 层，并标出线性注意力 / 全注意力的排列）。生成文字时，活动脉冲沿立柱上升。
-- **神经网络层图。** 每层显示 4 个权重矩阵（注意力 Q / 输出、MLP 门控 / 下投影），各取 12×12 个位置；层与层之间的连线在两层同时活跃时发光。鼠标悬停任一格，看到精确的权重值和它在完整矩阵中的行列位置。
-- **聊天与切换模型。** 本地的 OpenAI 兼容服务（`/v1/chat/completions`，支持流式）和内置聊天界面；编辑器等工具也可以用同一个接口。
-- **模型库。** 一键下载（带进度）、加载、卸载、删除；粘贴 Hugging Face 上的 MLX 模型名即可添加新模型。模型保存在项目文件夹里。
-- **向导式 LoRA 训练。** 拖入文件（`.jsonl`、`.md`、`.txt`、代码）→ 自动检查（密钥扫描、去重、拆分训练/验证集）→ 选择模型和强度 → 后台训练，实时显示 loss、速度和内存。结果是单独的适配器，不会修改原模型文件。
-- **真实的权重变化。** 训练中和训练后，层图显示的 ΔW 由适配器在同一批矩阵位置上计算得出，可以看出哪些层学到了东西。
+</div>
 
-### 哪些是真实的，哪些是风格化的
+<!-- 这里放一段 20 秒的演示 GIF：提问 → 星云放电 → 训练 → 各层亮起 → 前后回答对比 -->
 
-| 展示的内容 | 来源 |
+大多数微调工具做到“训练完成，loss = 1.23”就结束了；大多数可解释性工具展示的模型你又改不了。Neurolume 把两件事放进一个本地应用：**你训练模型，同时看着它的内部发生了什么。**
+
+> **状态：早期 alpha。** 服务、界面和工具链有 100 多个单元测试（不需要显卡）。模型加载和 LoRA 训练在一台机器上实测过（MacBook Pro M5 Max，128GB）。逐层探针、逐层预测、训练前后切换、导出等 MLX 相关功能按当前 mlx-lm 接口编写，**还没有完整的真机验证**，欢迎反馈。
+
+## 能做什么
+
+**不用写代码就能微调**
+- **有数据就导入，没有就生成。** 导入 `.jsonl`、笔记或代码；也可以让已加载的模型用你自己的资料**生成训练数据**：从文档生成问答对，或者从你写的代码/文章反推“需求”，答案就是你的原文，用来学你的风格。每一条都要你检查、可以修改。
+- **引导式 LoRA 训练**：自动检查（剔除密钥、去重、划分训练/验证集），实时显示损失、速度和内存。原模型不会被改动，结果是一个单独的适配器。
+- **到底有没有用？** 显示在没参与训练的数据上“验证集损失 训练前 → 训练后”，每层改变幅度的柱状图，以及**左右对比**：同一个问题，原模型和训练后的模型各答一次（不用重新加载，适配器临时关掉再打开）。
+- **带到别处用。** 把合并后的模型导出为 MLX 格式（LM Studio 可直接加载），或导出到 **Ollama**。
+
+**看见模型内部**
+- **实时脑图**：球体或星云，每一段对应模型的一层（Devstral Small 2 是 40 层，Qwen3.6-27B 是 64 层并标出线性/全注意力）。只有模型在生成或训练时才会放电。
+- **层图**：每层四个权重矩阵，悬停显示真实权重；生成时显示逐层活动，训练时显示适配器真实的 ΔW。
+- **逐层预测（logit lens）**：每生成一个字，看每一层“如果在这里停下”会输出什么，答案是在第几层成形的一目了然。
+- **回放**：回答完成后可以逐字拖动，脑图和层图回到生成那个字的时刻。
+- **“这张图怎么看？”**：中英文讲解注意力、MLP、线性注意力、LoRA 和逐层预测。
+
+**日常使用**
+- 兼容 OpenAI 接口的本地服务（`/v1/chat/completions`，支持流式）、一键模型库、**知识库**（导入书和文档做检索）、可选的**联网搜索**（也提供 MCP 服务）、以及能读项目文件夹并逐条提出修改、由你批准、可撤销的 **Agent**。
+
+### 信号都是真实的
+
+界面上标为“模型活动”的数据都来自模型，模拟数据会明确标注。完整定义见 [`docs/SIGNALS.md`](docs/SIGNALS.md)。
+
+| 显示内容 | 来源 |
 |---|---|
-| 层数、层类型、每层大小 | 从加载的模型读取 |
-| 悬停看到的权重值 | （反量化后）权重的精确采样，由 `scripts/dump_weights.py` 生成 |
-| 生成时每层的活动 | 每个 block 上的探针：最后一个 token 位置的 `mean\|输出 − 输入\| / mean\|输入\|` |
-| 训练 loss、tok/s、峰值内存 | 解析 `mlx_lm lora` 的输出 |
-| ΔW 格子和每层学习量 | 由适配器的 `lora_a` / `lora_b` 计算 |
-| 颜色、发光、全息风格、轨道环 | 风格化装饰 |
+| 层数和层类型 | 读取已加载的模型 |
+| 悬停显示的权重 | 反量化后权重的等间隔精确采样 |
+| 逐层活动 | 每层在正在生成的字上 `mean\|输出−输入\| / mean\|输入\|`（可切换“增强/原始”显示） |
+| 逐层预测 | 把中间层结果送进模型自己的最终归一化和输出层 |
+| ΔW、各层改变幅度 | 由适配器计算（`scale · B·A`） |
+| 验证集损失 训练前 → 训练后 | mlx-lm 在第一次更新前和结束时的评估 |
+| 球面上放电的走向、颜色、光晕 | 风格化（频率跟随显卡/内存占用和逐层活动） |
 
-页面没有连接模型时（例如托管的预览页）会进入明确标注的**演示模式**，信号是模拟的。
+## 快速开始（macOS，Apple 芯片）
 
-## 快速开始（macOS，Apple Silicon）
-
-```bash
-brew install uv
-git clone https://github.com/Yiteng-CHEN/cortex-mlx.git && cd cortex-mlx
-```
-
-然后**双击 `Cortex.command`**，或者：
+一行命令，不用克隆仓库：
 
 ```bash
-uv sync --extra mlx
-uv run --extra mlx cortex serve --open      # http://127.0.0.1:8765
+uvx --from "neurolume[mlx] @ git+https://github.com/Yiteng-CHEN/neurolume" neurolume serve --open
 ```
 
-在浏览器里：**模型库 → 下载**（Devstral Small 2 的 4-bit 版约 15 GB）→ **加载** → 开始聊天。对已下载的模型点**生成权重图**，层图就会显示真实权重值。点**训练**进入向导。
+或者克隆后双击 `Neurolume.command`，或运行：
 
-要求：Apple Silicon 的 macOS、[uv](https://docs.astral.sh/uv/)、足够的磁盘空间。推理 4-bit 24B 模型约需 15–20 GB 内存；Devstral Small 2 在序列长度 2048 下 LoRA 探针峰值约 18 GB（上述机器实测，其他机器未测试）。
+```bash
+git clone https://github.com/Yiteng-CHEN/neurolume.git && cd neurolume
+uv run --extra mlx neurolume serve --open      # http://127.0.0.1:8765
+```
 
-## 给本地模型联网搜索
+需要先安装 [uv](https://docs.astral.sh/uv/)（`brew install uv`）。在浏览器里：**模型库 → 下载**（Devstral Small 2 4bit 约 15GB）→ **加载** → 聊天；点 **训练** 打开向导。没有 Mac 也可以直接用浏览器打开 `src/neurolume/web/index.html`，以演示模式看界面。
 
-本地模型自己不能上网，需要外面的程序替它搜索，再把网页文字交给它。Cortex 提供两种方式（**默认都关闭**，你打开之前不会向外发送任何内容）：
+数据保存在 `~/Library/Application Support/Neurolume`；模型下载到仓库的 `models/` 文件夹（用 `uvx` 安装时放在数据文件夹里）。
 
-- **在 Cortex 聊天里：** 点**联网搜索**。模型需要时会输出 `<search>关键词</search>`，Cortex 去搜索并阅读前几个网页，模型据此回答并标注来源编号。任何模型都能用（不要求支持工具调用）。搜索来源可选 DuckDuckGo（免费、不需要账号）或你自己的 SearXNG（在**搜索设置**里选）。读取网页时拒绝本机和内网地址，网页文字只当资料，不当指令。
-- **给其他工具用（Claude Code、Codex，配 Ollama 或任何本地模型）：** `cortex mcp-search` 是一个 MCP 服务器（stdio），提供 `web_search` 和 `web_fetch`。示例（未对照当前客户端版本验证）：
-  - Claude Code：`claude mcp add cortex-search -- uv --directory /你的路径/cortex-mlx run cortex mcp-search`
-  - Codex（`~/.codex/config.toml`）：`[mcp_servers.cortex-search]`，`command = "uv"`，`args = ["--directory", "/你的路径/cortex-mlx", "run", "cortex", "mcp-search"]`
+## 实测数据（M5 Max，128GB，mlx 0.32.4 / mlx-lm 0.32.2）
 
-  本地模型需要支持工具调用。Anthropic 自带的 WebSearch 是服务器端工具，Claude Code 连接本地模型时用不了，所以要用 MCP 工具补上。
-
-状态：DuckDuckGo 结果解析是在没有网络的环境里写的，还没有对真实网站验证；如果失效，请改用 SearXNG。
-
-## 目前的实测数据（M5 Max，128 GB，mlx 0.32.4 / mlx-lm 0.32.2）
-
-| | Qwen3.6-27B（8-bit） | Devstral Small 2（4-bit） |
+| | Qwen3.6-27B（8bit） | Devstral Small 2（4bit） |
 |---|---|---|
-| 层结构 | 64 层 = 16 ×（3 线性 + 1 全注意力） | 40 层，全部为全注意力 |
-| LoRA 能跑的最长序列 | 1024（2048 内存不足，峰值 115 GB） | ≥ 2048 |
-| LoRA 秒/步 | 10.1 | 4.4 |
-| LoRA 峰值内存 | 62 GB | 18 GB |
+| 层数 | 64 = 16 ×（3 线性 + 1 全注意力） | 40，全部为全注意力 |
+| LoRA 能跑的最长序列 | 1024（2048 内存不足，峰值 115GB） | ≥ 2048 |
+| LoRA 每步秒数 | 10.1 | 4.4 |
+| LoRA 峰值内存 | 62GB | 18GB |
 
-选择底座模型的依据见 [`docs/DECISIONS.md`](docs/DECISIONS.md)；评测、测试、AOCI 等开发细节见 [`docs/DEVELOPMENT.zh-CN.md`](docs/DEVELOPMENT.zh-CN.md)。
+## 限制
 
-## 结构
+- 只支持 Apple 芯片（MLX）；同一时间只加载一个模型，训练和聊天不能同时进行。
+- 微调更适合学习风格和习惯，不适合可靠地记住事实——文档知识请用知识库。
+- 逐层预测每个字大约要多算一次输出层（每个显示的层），所以只在打开该视图时计算。
+- 导出到 Ollama 需要先把权重还原成未量化格式（约 4 倍体积），并且取决于 Ollama 是否支持该模型结构。
+
+## 代码结构
 
 ```
-web/index.html            单文件界面（three.js 全息立柱、层图、聊天、模型库、训练向导）
-src/cortex/server/        本地服务：聊天接口、模型库、训练、权重/ΔW 接口
-src/cortex/telemetry/     包裹 MLX Transformer 块的逐层探针
-src/cortex/backends/      MLX 后端、模拟后端、OpenAI 兼容客户端
-src/cortex/evals/         评测工具：从 git 历史挖题、隔离判分、对比
-scripts/                  dump_weights.py、基准测试等
-docs/                     项目简介、技术决定（D1–D20）、计划
+src/neurolume/web/         界面：index.html、css/、js/（普通脚本，无需构建）
+src/neurolume/server/      本地服务：聊天、模型库、训练、数据生成、导出、知识库、Agent
+src/neurolume/telemetry/   MLX 层探针与逐层预测
+src/neurolume/backends/    MLX 后端、模拟后端、OpenAI 兼容客户端
+src/neurolume/evals/       评测工具：从 git 历史挖题、沙箱判分
+docs/                      SIGNALS.md、技术决定、计划
 ```
 
-服务只监听 `127.0.0.1`，并拒绝来源不是本机的 `Host` 头。Cortex 从不读取你的 Claude / Codex / Hugging Face 登录凭证。
-
-## 路线图
-
-已完成：评测与选型工具（M0）、本地服务、模型库、训练向导、全息立柱与层图。
-接下来：观察你自己的编程过程（git 钩子、Claude Code / Codex 会话记录），沉淀为已验证、已脱敏的样本库；检索（RAG），让文档和书本可以导入；适配器上线前的影子对照和评测闸门；每层重要性（梯度、消融）视图。详见 [`PLAN.md`](PLAN.md)。
-
-## 需要了解的限制
-
-- 只支持 Apple Silicon（MLX）。同一时间只加载一个模型；训练和聊天不能同时进行。
-- 微调适合学习风格和习惯，不适合可靠地记住事实。文档类知识计划通过检索来处理。
-- 适配器目前不会在使用前自动评测。请小范围试用，效果变差就切回原模型。
-- 下载 Hugging Face 模型需要网络；开发时用的沙箱环境连不上，所以下载流程只用模拟对象测试过。
-
-## 相关项目
-
-Cortex 关注的是**实时、本地、可训练**的模型。想了解 Transformer 的工作原理，可以看 [llm-viz](https://github.com/bbycroft/llm-viz) 和 [Transformer Explainer](https://github.com/poloclub/transformer-explainer)；做研究级的可解释性，可以看 [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) 和 [CircuitsVis](https://github.com/TransformerLensOrg/CircuitsVis)。
+服务只监听 `127.0.0.1`，不会读取 Claude / Codex / Hugging Face 的凭证。
 
 ## 参与贡献
 
-欢迎提 issue 和 PR，尤其欢迎硬件报告（芯片、内存、模型、哪些能跑通）。运行测试：`uv run python -m unittest discover -s tests -t .`。
+欢迎提 Issue 和 PR，尤其是真机运行报告（芯片、内存、模型、哪些能用）。见 [CONTRIBUTING.md](CONTRIBUTING.md)。运行测试：`PYTHONPATH=src python -m unittest discover -s tests -t .`
+
+## 相关项目
+
+[M-Courtyard](https://discuss.huggingface.co/t/m-courtyard-fine-tune-llms-on-macos-with-zero-code-mlx-ollama-gui/173463)、[MLX-LoRA-Studio](https://github.com/Goekdeniz-Guelmez/MLX-LoRA-Studio)（零代码 MLX 微调）；[llm-viz](https://github.com/bbycroft/llm-viz)、[Transformer Explainer](https://github.com/poloclub/transformer-explainer)（讲解 Transformer 原理）；[TransformerLens](https://github.com/TransformerLensOrg/TransformerLens)、[llm-transparency-tool](https://github.com/facebookresearch/llm-transparency-tool)（研究级可解释性）。Neurolume 的定位在它们的交叉处：一个你能同时训练和观察的本地模型。
 
 ## 许可证
 
-[MIT](LICENSE)
+[MIT](LICENSE)。Neurolume 原名 *Cortex*，旧链接会自动跳转。

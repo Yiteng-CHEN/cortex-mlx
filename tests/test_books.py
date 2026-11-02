@@ -1,6 +1,6 @@
 import io, json, tempfile, unittest, zipfile
 from pathlib import Path
-from cortex.server.books import Books, BookError, chunk_text, with_reference, extract_text
+from neurolume.server.books import Books, BookError, chunk_text, with_reference, extract_text
 
 
 class BooksTest(unittest.TestCase):
@@ -42,8 +42,8 @@ class BooksTest(unittest.TestCase):
 class ChatBooksTest(unittest.TestCase):
     def test_chat_uses_books(self):
         import os, threading, urllib.request
-        from cortex.config import load_config
-        from cortex.server.app import serve
+        from neurolume.config import load_config
+        from neurolume.server.app import serve
         seen = []
 
         class B:
@@ -53,14 +53,14 @@ class ChatBooksTest(unittest.TestCase):
                 yield {"text": "ok", "energy": [0, 0], "tps": 1.0}
 
         with tempfile.TemporaryDirectory() as d:
-            os.environ["CORTEX_DATA_DIR"] = d
+            os.environ["NEUROLUME_DATA_DIR"] = d
             try:
                 httpd = serve(load_config(), port=0, block=False, loader=lambda n: B())
             finally:
-                os.environ.pop("CORTEX_DATA_DIR")
+                os.environ.pop("NEUROLUME_DATA_DIR")
             threading.Thread(target=httpd.serve_forever, daemon=True).start()
             base = f"http://127.0.0.1:{httpd.server_address[1]}"
-            st = httpd.cortex_state
+            st = httpd.neurolume_state
             st.select(st.model_names()[0])
             st.books.add("Ocean", "o.txt", ("鲸鱼是海洋里最大的哺乳动物。" * 10).encode())
             def post(path, obj):

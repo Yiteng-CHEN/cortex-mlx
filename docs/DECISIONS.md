@@ -10,7 +10,7 @@ Ollama 拿不到中间层激活，也不能训练。MLX-LM 在 Apple Silicon 上
 待核实：目标模型的具体支持情况（见 D8、PLAN R1）。
 
 ## D3 云端侧只观察，不接入 · 已定
-不在 Cortex 里对接任何云端模型 API，也不使用或转存 Claude/Codex 的登录凭证。用户照常使用 Claude Code / Codex，Cortex 通过 git hook、Claude Code hooks 和本地会话记录观察结果。
+不在 Neurolume 里对接任何云端模型 API，也不使用或转存 Claude/Codex 的登录凭证。用户照常使用 Claude Code / Codex，Neurolume 通过 git hook、Claude Code hooks 和本地会话记录观察结果。
 
 ## D4 评测集从 git 历史挖掘，分 dev / holdout · 已定
 真实任务比手写题更能反映用户的工作。holdout 只用于上线闸门，用内容哈希保证永不进入训练和知识库。
@@ -33,8 +33,8 @@ RAG → 规则 → LoRA。每层都要在评测上证明比不用更好才上线
 ## D9 Python 工具链 · 已定：uv（2026-10-30）
 依赖锁定、虚拟环境、Python 版本管理一体。核心包只用标准库，`mlx-lm` 作为可选依赖（`uv sync --extra mlx`，仅 macOS）。测试用标准库 unittest，不依赖额外包。
 
-## D10 运行数据目录 · 已定：`~/Library/Application Support/Cortex/`（2026-10-30）
-不进仓库，不被 AOCI 扫描。可用环境变量 `CORTEX_DATA_DIR` 或 `config/local.toml` 覆盖（测试时用临时目录）。
+## D10 运行数据目录 · 已定：`~/Library/Application Support/Neurolume/`（2026-10-30）
+不进仓库，不被 AOCI 扫描。可用环境变量 `NEUROLUME_DATA_DIR` 或 `config/local.toml` 覆盖（测试时用临时目录）。
 
 ## D11 AOCI 作为代码认知层 · 已定
 用 AOCI（0.1.0-rc23）为 Claude Code 和 Codex 维护项目地图。
@@ -43,8 +43,8 @@ RAG → 规则 → LoRA。每层都要在评测上证明比不用更好才上线
 - `aoci.txt`、`aoci.meta.txt`、`aoci.code.txt`、`AGENTS.md` 进 git；`.aoci/`、`.mcp.json`、`.claude/settings.json`、`.codex/config.toml` 含本机绝对路径，不进 git。
 - 项目代码量很少时先不建完整索引，M0 骨架完成后再由 agent 建索引。
 
-## D12 项目名 Cortex · 已定
-Python 包名 `cortex`，推理服务 `cortex-server`，命令行 `cortex`。
+## D12 项目名 Neurolume · 已定
+Python 包名 `neurolume`，推理服务 `neurolume-server`，命令行 `neurolume`。
 
 ## D13 底座候选改为 Qwen3.6-27B（主选）+ Devstral Small 2（对照）· 已定候选，M0 实测后选定（2026-10-30）
 取代 D8 的候选部分。
@@ -74,14 +74,14 @@ Python 包名 `cortex`，推理服务 `cortex-server`，命令行 `cortex`。
 清单只记录引用（仓库名 + 提交 SHA + 文件列表），不复制代码。放在 `<数据目录>/evals/{candidates,dev,holdout}/`：清单指向本机仓库，且 holdout 不应进入 git 历史被任何工具读到。挖题仓库的本机路径和测试命令写在 `config/local.toml`（不进 git）。
 
 ## D15 开发与测试环境 · 已定（2026-10-30）
-Cortex 的核心代码在任何有 Python ≥3.11 和 git 的环境里都能运行和测试（测试用 mock 后端和合成仓库）。MLX 相关步骤（下载模型、基准、训练探针）只能在 Mac 原生运行，通过 `scripts/m0-bench.sh` 执行。
+Neurolume 的核心代码在任何有 Python ≥3.11 和 git 的环境里都能运行和测试（测试用 mock 后端和合成仓库）。MLX 相关步骤（下载模型、基准、训练探针）只能在 Mac 原生运行，通过 `scripts/m0-bench.sh` 执行。
 
 ## D17 模型下载放在项目的 `models/` 目录 · 已定（2026-10-30）
-取代 D10 中"模型放数据目录"的隐含设想。Cortex 启动时把 `HF_HUB_CACHE` 指向 `<项目根>/models/huggingface/hub`，因此项目以后下载的所有 Hugging Face 模型（包括 mlx-lm 的 LoRA 子进程）都落在这里。
+取代 D10 中"模型放数据目录"的隐含设想。Neurolume 启动时把 `HF_HUB_CACHE` 指向 `<项目根>/models/huggingface/hub`，因此项目以后下载的所有 Hugging Face 模型（包括 mlx-lm 的 LoRA 子进程）都落在这里。
 - 只改模型缓存，不改 `HF_HOME`，所以已保存的 Hugging Face 登录令牌不受影响；用户自己导出的 `HF_HUB_CACHE` 优先。
-- 可用环境变量 `CORTEX_MODELS_DIR` 或 `config/local.toml` 的 `[paths] models_dir` 覆盖。
+- 可用环境变量 `NEUROLUME_MODELS_DIR` 或 `config/local.toml` 的 `[paths] models_dir` 覆盖。
 - `models/` 已在 `.gitignore`。已下载的两个 M0 候选用 `scripts/move-models.sh` 搬入。
-- 风险：若 `~/Documents` 开启了 iCloud「桌面与文档」同步，几十 GB 模型会被上传 iCloud，且未下载到本地的文件会让加载失败。处理：关闭该同步，或把目录改名为 `models.nosync`（iCloud 会忽略 `.nosync` 结尾的目录）并用 `CORTEX_MODELS_DIR` 指向它。
+- 风险：若 `~/Documents` 开启了 iCloud「桌面与文档」同步，几十 GB 模型会被上传 iCloud，且未下载到本地的文件会让加载失败。处理：关闭该同步，或把目录改名为 `models.nosync`（iCloud 会忽略 `.nosync` 结尾的目录）并用 `NEUROLUME_MODELS_DIR` 指向它。
 
 ## D16 M0 首次实测结果（2026-10-30，M5 Max 128GB，mlx 0.32.4 / mlx-lm 0.32.2）
 - **架构核实**：Qwen3.6-27B 为 64 层，模式 `(LLLA)x16`（48 层线性注意力 + 16 层全注意力），全部为稠密 MLP，8bit 权重 33.8GB。Devstral Small 2 为 40 层全注意力（`Ax40`），4bit 权重 14.2GB。与 D13 的资料一致。
@@ -100,7 +100,7 @@ Cortex 的核心代码在任何有 Python ≥3.11 和 git 的环境里都能运�
 - 注：`inspect` 记录的 load_seconds（5403 / 2519）包含首次下载时间，不是真实加载时间。
 
 ## D18 增加「读书/学习」能力：先用知识库，不靠微调灌知识 · 待定方案，M2 后实施（2026-10-30）
-需求：导入教材 PDF / 电子文稿后，Cortex 像老师一样出学习计划、随时答疑，并在以后的相关提问中结合书中知识；大脑图要能看到读书时的变化。
+需求：导入教材 PDF / 电子文稿后，Neurolume 像老师一样出学习计划、随时答疑，并在以后的相关提问中结合书中知识；大脑图要能看到读书时的变化。
 - **知识进入模型的主路径是检索（RAG）**：解析 → 按章节切块 → 向量+全文索引（沿用 sqlite-vec，D7）→ 回答时引用原文页码。LoRA 微调不适合可靠地"记住"事实（容易记错、难更新、难删除），LoRA 只用于风格、解题套路等技能。
 - **老师功能**：从目录/章节生成学习计划；每次学习前用间隔重复复习上次内容；自出题 + 批改；学习者档案记录掌握度（可在界面查看和修改）。
 - **与编程共用同一套机制**：样本库/知识库、检索、调度器、评测。书籍也要有"评测"：从书里出题，比较有/无检索时的正确率。
@@ -112,9 +112,23 @@ Cortex 的核心代码在任何有 Python ≥3.11 和 git 的环境里都能运�
 可视化：Devstral 40 层全为标准注意力，大脑图和权重图按这个结构绘制。
 
 ## D20 日常操作全部在网页界面完成，不要求用户敲命令 · 已定（2026-10-30）
-- **启动**：双击 `Cortex.command`（装依赖、启动本地服务、打开浏览器）。服务只监听本机，并校验 Host 头。
+- **启动**：双击 `Neurolume.command`（装依赖、启动本地服务、打开浏览器）。服务只监听本机，并校验 Host 头。
 - **模型库**（`server/library.py`）：条目 = 配置里的 mlx 候选 + 用户按 Hugging Face 名添加的模型（存 `<数据目录>/library.json`）。下载在后台线程跑，进度 = 磁盘字节数 ÷ 仓库总大小；下载前检查磁盘空间；删除只允许在模型缓存目录内；未下载的模型不允许直接加载（避免无进度的隐式下载）。
 - **训练向导**（`server/training.py`）：导入文件 → 剔除含密钥的样本、去重、按 9:1 拆出验证集 → 以子进程运行 `mlx_lm lora`（LoRA 作用于 q/o/gate/down 四个矩阵，与权重图一致）→ 实时解析 loss / tok/s / 峰值内存。训练前自动卸载当前模型；训练与聊天互斥。产物是 `<数据目录>/adapters/<模型>/<时间>/` 下的适配器，原模型文件不动。
 - **真实的权重变化**：从适配器的 lora_a / lora_b 在权重图同一批 (行,列) 位置计算 ΔW = scale·(B·A)ᵀ，并用 ‖ΔW‖_F 表示每层的学习量，驱动网络层图的“训练”视图和 3D 立柱的发光。
 - **未做**：适配器上线前的 dev/holdout 评测闸门、回归自动回滚、知识库（RAG）导入——属于 M2/M4。界面上已提示“适配器尚未评测，先小范围试用”。
 - **未在硬件上验证**：下载（huggingface_hub 的 `tqdm_class`）、`mlx_lm lora` 输出解析的 val loss 行、适配器键名（`layers.N.<模块>.lora_a/b`）。首次真机运行时按报错调整。
+
+## D21 项目改名为 Neurolume，并改成可安装的包 · 已定（2026-11-02）
+- 原名 Cortex 与多个知名产品重名（Snowflake Cortex、Cortex.cpp 等），不利于搜索和传播。新名 Neurolume（neuron + lume，“点亮神经元”），GitHub 同名仓库极少。
+- 包名、命令、环境变量（`NEUROLUME_*`，旧的 `CORTEX_*` 仍然识别）、数据目录（`~/Library/Application Support/Neurolume`，首次启动时自动把旧的 `Cortex` 目录改名过来）、界面设置（localStorage `cortex.*` 自动迁移）同步改名。
+- 界面和默认配置放进包内（`src/neurolume/web`、`src/neurolume/defaults.toml`），因此 `uvx --from git+…` 一行即可运行；在仓库里运行时模型仍放在仓库的 `models/`，已下载的模型不受影响。
+- 前端从单文件拆成 `css/` 和按顺序加载的 `js/` 普通脚本，不引入构建工具。
+
+## D22 训练效果、逐层预测、导出与数据生成的做法 · 已定（2026-11-02）
+- **前后对比**不重新加载模型：LoRA 层的 `scale` 设为 0 即等于原模型，对比时在锁内关掉再打开。LoRA 层要在探针包装之前收集（包装器不是 nn.Module，遍历不到）。
+- **验证集损失训练前 → 后**直接用 mlx-lm 训练日志：它在第一次更新前评估一次，结束时再评估一次。
+- **逐层预测（logit lens）**只对约 16 个均匀分布的层 + 最后一层计算，且只在该视图打开时计算，避免每个字多出几十次输出层计算。
+- **导出**用 `mlx_lm fuse`：MLX 格式供 LM Studio 使用（安装了 LM Studio 时链接进其模型目录）；Ollama 需要先反量化再由 `ollama create --quantize` 导入，是否支持取决于 Ollama 对该结构的支持，失败时保留导出文件夹。
+- **训练数据生成**两种配方：文档 → 问答对；代码/文章 → 反推需求（答案保持用户原文，用于学风格，即 instruction back-translation）。每条都由用户审核后才成为数据集。
+- 未在真机验证：探针的逐层预测、适配器开关、导出命令；单元测试用模拟后端覆盖了服务端和界面流程。

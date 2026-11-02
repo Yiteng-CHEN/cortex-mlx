@@ -38,8 +38,8 @@ wheels = [
 ]
 
 [[package]]
-name = "cortex"
-version = "0.1.0"
+name = "neurolume"
+version = "0.2.0"
 source = { editable = "." }
 
 [package.optional-dependencies]

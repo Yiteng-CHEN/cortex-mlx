@@ -3,8 +3,8 @@ import threading
 import unittest
 import urllib.request
 
-from cortex.server import websearch
-from cortex.server.search import SearchError, Searcher, check_public_url, page_text, parse_ddg
+from neurolume.server import websearch
+from neurolume.server.search import SearchError, Searcher, check_public_url, page_text, parse_ddg
 
 DDG = """<div class="result"><h2><a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.org%2Fa&amp;rut=x">Apple <b>MLX</b> docs</a></h2>
 <a class="result__snippet" href="x">MLX is an array framework.</a></div>
@@ -114,8 +114,8 @@ class TestRun(unittest.TestCase):
 class TestServerWeb(unittest.TestCase):
     def test_http_flow(self):
         import tempfile, pathlib
-        from cortex.config import load_config
-        from cortex.server.app import serve
+        from neurolume.config import load_config
+        from neurolume.server.app import serve
 
         class B:
             num_layers = 1
@@ -129,7 +129,7 @@ class TestServerWeb(unittest.TestCase):
 
         cfg = load_config()
         httpd = serve(cfg, port=0, block=False, loader=lambda n: B())
-        st = httpd.cortex_state
+        st = httpd.neurolume_state
         st.search_fetch = FakeFetch()
         st._search_file = pathlib.Path(tempfile.mkdtemp()) / "s.json"
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -161,10 +161,10 @@ if __name__ == "__main__":
 
 class TestMCP(unittest.TestCase):
     def test_protocol(self):
-        from cortex.mcp_search import handle
+        from neurolume.mcp_search import handle
         sf = lambda: Searcher(fetch=FakeFetch())
         r = handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-03-26"}}, sf)
-        self.assertEqual(r["result"]["serverInfo"]["name"], "cortex-search")
+        self.assertEqual(r["result"]["serverInfo"]["name"], "neurolume-search")
         self.assertIsNone(handle({"jsonrpc": "2.0", "method": "notifications/initialized"}, sf))
         names = [t["name"] for t in handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, sf)["result"]["tools"]]
         self.assertEqual(names, ["web_search", "web_fetch"])

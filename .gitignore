@@ -36,3 +36,4 @@ config/local.toml
 
 # --- 发布时排除 ---
 _to_delete/
+build/

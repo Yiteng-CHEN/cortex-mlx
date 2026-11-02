@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit tests (stdlib only, no model needed)
+        run: python -m unittest discover -s tests -t . -v
+        env:
+          PYTHONPATH: src
+      - name: Front-end syntax check
+        run: for f in src/neurolume/web/js/*.js; do node --check "$f"; done

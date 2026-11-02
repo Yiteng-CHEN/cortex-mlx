@@ -6,14 +6,14 @@ import unittest
 import urllib.error
 import urllib.request
 
-from cortex.config import PROJECT_ROOT, load_config
-from cortex.server.app import serve
+from neurolume.config import DEFAULTS, PROJECT_ROOT, load_config
+from neurolume.server.app import serve
 
 
 class TestServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cfg = load_config(PROJECT_ROOT / "config" / "cortex.toml", None)
+        cfg = load_config(DEFAULTS, None)
         cls.httpd = serve(cfg, port=0, block=False, demo=True)
         cls.port = cls.httpd.server_address[1]
         cls.t = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
@@ -55,10 +55,10 @@ class TestServer(unittest.TestCase):
         lines = [l.decode().strip() for l in r if l.strip()]
         self.assertEqual(lines[-1], "data: [DONE]")
         chunks = [json.loads(l[6:]) for l in lines[:-1]]
-        with_energy = [c for c in chunks if c.get("cortex", {}).get("energy")]
+        with_energy = [c for c in chunks if c.get("neurolume", {}).get("energy")]
         self.assertGreaterEqual(len(with_energy), 3)
-        self.assertEqual(len(with_energy[0]["cortex"]["energy"]), 40)
-        self.assertTrue(with_energy[0]["cortex"]["simulated"])
+        self.assertEqual(len(with_energy[0]["neurolume"]["energy"]), 40)
+        self.assertTrue(with_energy[0]["neurolume"]["simulated"])
 
     def test_nonstream_openai_shape(self):
         self.post("/api/select", {"name": "demo-chat"})
@@ -74,7 +74,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(cm.exception.code, 403)
 
     def test_refuses_non_local_bind(self):
-        cfg = load_config(PROJECT_ROOT / "config" / "cortex.toml", None)
+        cfg = load_config(DEFAULTS, None)
         with self.assertRaises(ValueError):
             serve(cfg, host="0.0.0.0", port=0, block=False)
 
@@ -93,7 +93,7 @@ class TestMLXThreadAffinity(unittest.TestCase):
 
     def test_load_and_stream_share_one_thread(self):
         import threading
-        from cortex.server.app import State
+        from neurolume.server.app import State
         seen = []
 
         class B:
@@ -107,7 +107,7 @@ class TestMLXThreadAffinity(unittest.TestCase):
                 yield {"text": "ok", "energy": [0, 0], "tps": 1.0}
 
         import tempfile, pathlib
-        from cortex.config import load_config
+        from neurolume.config import load_config
         st = State(load_config(), loader=lambda name: B())
         name = st.model_names()[0]
         st.select(name)
@@ -119,7 +119,7 @@ class TestMLXThreadAffinity(unittest.TestCase):
 
 class TestNoDemoByDefault(unittest.TestCase):
     def test_demo_model_hidden_in_real_use(self):
-        from cortex.server.app import State
-        from cortex.config import load_config
+        from neurolume.server.app import State
+        from neurolume.config import load_config
         self.assertNotIn("demo-chat", State(load_config()).model_names())
         self.assertIn("demo-chat", State(load_config(), demo=True).model_names())

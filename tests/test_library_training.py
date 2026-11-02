@@ -9,9 +9,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from cortex.config import PROJECT_ROOT, load_config
-from cortex.server.library import Library, slug
-from cortex.server.training import (Datasets, Trainer, cells, chunk_text, parse_files, parse_line,
+from neurolume.config import DEFAULTS, PROJECT_ROOT, load_config
+from neurolume.server.library import Library, slug
+from neurolume.server.training import (Datasets, Trainer, cells, chunk_text, parse_files, parse_line,
                                     plan_iters, sample_idx)
 
 
@@ -44,7 +44,7 @@ class LibraryTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        self.cfg = load_config(PROJECT_ROOT / "config" / "cortex.toml", None)
+        self.cfg = load_config(DEFAULTS, None)
         self.lib = Library(self.cfg, self.root, self.root / "hub", fake_info, fake_dl_factory())
 
     def tearDown(self):
@@ -212,7 +212,7 @@ class TrainerTests(unittest.TestCase):
 
     def test_successful_run_tracks_progress(self):
         tr = self.run_with(["Loading", "   2  2.5  ▼  40  100", "   4  2.1  ▼  42  200", "Val loss 1.9",
-                            "CORTEX_PEAK_GB=18.30"], 0)
+                            "NEUROLUME_PEAK_GB=18.30"], 0)
         self.wait_done(tr)
         st = tr.status()
         self.assertEqual(st["state"], "done")
@@ -270,10 +270,10 @@ class DeltaMathTests(unittest.TestCase):
 class ServerFlowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from cortex.server.app import serve
+        from neurolume.server.app import serve
         cls.tmp = tempfile.TemporaryDirectory()
         root = Path(cls.tmp.name)
-        cfg = load_config(PROJECT_ROOT / "config" / "cortex.toml", None)
+        cfg = load_config(DEFAULTS, None)
         cls.lib = Library(cfg, root, root / "hub", fake_info, fake_dl_factory())
         ds = Datasets(root / "datasets")
         cls.cap = {}
@@ -284,8 +284,8 @@ class ServerFlowTests(unittest.TestCase):
             return _FakeProc(["   2  2.0  ▼  40  100"], 0)
         tr = Trainer(root, ds, spawn)
         cls.httpd = serve(cfg, port=0, block=False, library=cls.lib, trainer=tr,
-                          loader=lambda n: __import__("cortex.server.chat", fromlist=["DemoChat"]).DemoChat(n, delay=0))
-        cls.state = cls.httpd.cortex_state
+                          loader=lambda n: __import__("neurolume.server.chat", fromlist=["DemoChat"]).DemoChat(n, delay=0))
+        cls.state = cls.httpd.neurolume_state
         cls.state.datasets = ds
         cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
         threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()

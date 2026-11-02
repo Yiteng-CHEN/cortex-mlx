@@ -1,6 +1,6 @@
 import unittest
 
-from cortex.evals.parse import parse_files
+from neurolume.evals.parse import parse_files
 
 
 class TestParse(unittest.TestCase):

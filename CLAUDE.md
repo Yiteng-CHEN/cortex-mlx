@@ -1,4 +1,4 @@
-# Cortex · Claude Code 说明
+# Neurolume · Claude Code 说明
 
 @AGENTS.md
 

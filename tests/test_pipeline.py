@@ -4,13 +4,13 @@ import json
 import unittest
 from contextlib import redirect_stdout
 
-from cortex.backends.factory import make_backend
-from cortex.cli import main
-from cortex.evals.miner import mine, split_counts
-from cortex.evals.report import comparison_rows, latest_results, probe_results
-from cortex.evals.review import review
-from cortex.evals.runner import run_eval, save_result
-from cortex.evals.task import holdout_hashes, load_split
+from neurolume.backends.factory import make_backend
+from neurolume.cli import main
+from neurolume.evals.miner import mine, split_counts
+from neurolume.evals.report import comparison_rows, latest_results, probe_results
+from neurolume.evals.review import review
+from neurolume.evals.runner import run_eval, save_result
+from neurolume.evals.task import holdout_hashes, load_split
 
 from .helpers import FixtureEnv
 

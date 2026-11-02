@@ -1,7 +1,7 @@
 import json, os, tempfile, threading, time, unittest, urllib.request
 from pathlib import Path
-from cortex.server import agent as A
-from cortex.server.agent import AgentError, Proposals, Workspace
+from neurolume.server import agent as A
+from neurolume.server.agent import AgentError, Proposals, Workspace
 
 
 def mkws():
@@ -146,8 +146,8 @@ class LoopTest(unittest.TestCase):
 
 class HttpAgentTest(unittest.TestCase):
     def test_stream_with_approval(self):
-        from cortex.config import load_config
-        from cortex.server.app import serve
+        from neurolume.config import load_config
+        from neurolume.server.app import serve
         d, ws = mkws()
         replies = iter(['<tool>{"name":"edit_file","args":{"path":"src/a.py","old":"a - b","new":"a + b"}}</tool>', "完成"])
 
@@ -156,9 +156,9 @@ class HttpAgentTest(unittest.TestCase):
             def stream_chat(self, messages, **kw):
                 yield {"text": next(replies), "energy": [0, 0], "tps": 1.0}
         with d, tempfile.TemporaryDirectory() as data:
-            os.environ["CORTEX_DATA_DIR"] = data
+            os.environ["NEUROLUME_DATA_DIR"] = data
             try: httpd = serve(load_config(), port=0, block=False, loader=lambda n: B())
-            finally: os.environ.pop("CORTEX_DATA_DIR")
+            finally: os.environ.pop("NEUROLUME_DATA_DIR")
             threading.Thread(target=httpd.serve_forever, daemon=True).start()
             base = f"http://127.0.0.1:{httpd.server_address[1]}"
             def post(path, obj):
@@ -166,7 +166,7 @@ class HttpAgentTest(unittest.TestCase):
                 try:
                     with urllib.request.urlopen(r) as x: return x.status, x.read().decode()
                 except urllib.error.HTTPError as e: return e.code, e.read().decode()
-            st = httpd.cortex_state; st.select(st.model_names()[0])
+            st = httpd.neurolume_state; st.select(st.model_names()[0])
             self.assertEqual(post("/api/agent/workspace", {"path": "/"})[0], 400)
             self.assertEqual(post("/api/agent/workspace", {"path": str(ws.root)})[0], 200)
             def approver():
