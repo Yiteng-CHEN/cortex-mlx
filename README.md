@@ -14,7 +14,7 @@ English · [简体中文](README.zh-CN.md)
 </div>
 
 <p align="center"><img src="docs/media/demo.gif" width="800" alt="Neurolume demo: the nebula brain discharges while Devstral Small 2 answers; the logit lens shows each layer's guess for the next token and the bars show live per-layer activity"></p>
-<p align="center"><sub>Real run, not a mock-up: Devstral Small 2 on an M5 Max, recorded from the app's own canvases. Logit lens and per-layer activity are measured from the model (shown 1.25× speed).</sub></p>
+<p align="center"><sub>Real run, not a mock-up: Devstral Small 2 on an M5 Max, recorded from the app's own canvases. Logit lens and per-layer activity are measured from the model (shown 1.25× speed) · <a href="docs/media/demo.mp4">full-quality video</a>.</sub></p>
 
 Most fine-tuning tools stop at "training finished, loss = 1.23". Most interpretability tools show a model you cannot change. Neurolume puts both in one local app: **you train the model, and you watch its insides while you do it.**
 

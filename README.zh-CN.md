@@ -14,7 +14,7 @@
 </div>
 
 <p align="center"><img src="docs/media/demo.gif" width="800" alt="Neurolume 演示：Devstral Small 2 回答时星云大脑放电，逐层预测显示每层对下一个字的猜测，柱状图是实时逐层活动"></p>
-<p align="center"><sub>真实运行录屏，不是效果图：M5 Max 上的 Devstral Small 2，直接从应用自己的画布录制。逐层预测和逐层活动都来自模型的真实测量（1.25 倍速）。</sub></p>
+<p align="center"><sub>真实运行录屏，不是效果图：M5 Max 上的 Devstral Small 2，直接从应用自己的画布录制。逐层预测和逐层活动都来自模型的真实测量（1.25 倍速）· <a href="docs/media/demo.mp4">高清视频</a>。</sub></p>
 
 大多数微调工具做到“训练完成，loss = 1.23”就结束了；大多数可解释性工具展示的模型你又改不了。Neurolume 把两件事放进一个本地应用：**你训练模型，同时看着它的内部发生了什么。**
 
