@@ -19,8 +19,8 @@ dist/
 .vite/
 
 # --- Project data (models, adapters, samples, eval results live outside git) ---
-data/
-models/
+/data/
+/models/
 *.safetensors
 *.gguf
 
