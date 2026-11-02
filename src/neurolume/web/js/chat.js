@@ -150,7 +150,7 @@ async function loadWeightsFor(name){
   const tok=++_wTok;
   try{const url=LIVE?`/api/weights?model=${encodeURIComponent(name)}`:(name==='devstral-small-2'?'weights-devstral-small-2.json':null);
     if(!url)throw 0;const r=await fetch(url);if(!r.ok)throw 0;const j=await r.json();if(tok!==_wTok||j.layers.length!==NL)throw 0;loadWeights(j)}
-  catch(e){if(!W||W.length!==NL||realWeights)synth()}
+  catch(e){if(!W||W.length!==NL||realWeights)synth();if(LIVE&&name&&name===active&&!SIM_BACKEND&&WSTATE!=='loading')setTimeout(()=>genWeights(name),300)}
   noteData();
 }
 let adaptersAll=[];

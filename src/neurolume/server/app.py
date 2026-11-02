@@ -226,6 +226,18 @@ class State:
                 break
         return out
 
+    def generate_weights(self) -> dict:
+        """Real weight map from the model that is already loaded (seconds; no second load)."""
+        b = self.backend
+        if b is None or getattr(b, "simulated", False) or not hasattr(b, "_model"):
+            raise RuntimeError("需要先加载一个真实模型")
+        from ..tools import dump_weights
+        c = self.candidate(self.active)
+        with self.lock:
+            out = self.worker.call(dump_weights.dump_from_model, b._model, c.model, self.active, 12,
+                                   self.weights_dir, lambda m: None)
+        return {"ok": True, "model": self.active, "path": str(out)}
+
     def export(self, kind: str, adapter_id: str, name: str = "") -> dict:
         if self.trainer.running():
             raise RuntimeError("正在训练，请等训练结束再导出")
@@ -554,6 +566,7 @@ def make_handler(state: State):
                 "/api/agent/pick": lambda: self._json(state.pick_folder()),
                 "/api/agent/decide": lambda: self._json(state.proposals.decide(str(body.get("id", "")), bool(body.get("approve")))),
                 "/api/agent/undo": lambda: self._json(state.proposals.undo(str(body.get("id", "")))),
+                "/api/weights/generate": lambda: self._json(state.generate_weights()),
                 "/api/compare": lambda: self._json(state.compare(str(body.get("prompt", "")))),
                 "/api/export": lambda: self._json(state.export(str(body.get("kind", "")), str(body.get("adapter", "")),
                                                                str(body.get("name", "")))),

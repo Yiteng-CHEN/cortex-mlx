@@ -53,10 +53,16 @@ let W=null,realWeights=false,dW=[],dMax=1e-6;
 function synth(){const r=rng(7),gauss=()=>Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r());
   W=[];for(let l=0;l<NL;l++)W.push(MATS.map((m,k)=>{const sd=.012+.01*Math.sin(l/6+k)**2,v=new Float32Array(144);for(let i=0;i<144;i++)v[i]=gauss()*sd;return{v,std:sd,shape:m.shape}}));realWeights=false}
 function loadWeights(j){W=j.layers.map(L=>L.m.map(m=>({v:Float32Array.from(m.v),std:m.std,shape:m.shape})));realWeights=true}
-function noteData(){$('dataNote').innerHTML=realWeights?'权重值：<b>真实权重</b>':'权重值：<b style="color:var(--warn)">示例（运行 dump_weights.py 换成真实值）</b>'}
-function trainStep(){ // 示例：等训练接入后换成适配器的真实 ΔW
-  const r=Math.random;for(let l=0;l<NL;l++)for(let k=0;k<4;k++){const prof=(.3+.7*l/NL)*(k>=2?1:.6);
-    for(let i=0;i<144;i++){dW[l][k][i]+=(r()-.45)*W[l][k].std*.08*prof*(r()<.35?1:0);dMax=Math.max(dMax,Math.abs(dW[l][k][i]))}}
-  mode='train';setMode()
-}
+let WSTATE='';   // 读取真实权重的状态：'' / 'loading' / 'error:…'
+function noteData(){const n=$('dataNote');
+  if(realWeights){n.innerHTML='权重值：<b>真实权重</b>';return}
+  if(LIVE&&active&&!SIM_BACKEND){
+    if(WSTATE==='loading'){n.innerHTML='权重值：<b>正在从已加载的模型读取真实权重…</b>';return}
+    n.innerHTML=`权重值：<b style="color:var(--warn)">${WSTATE.startsWith('error:')?'读取失败：'+escH(WSTATE.slice(6)):'还没有读取'}</b> <button type="button" id="genW">读取真实权重</button>`;
+    $('genW').onclick=()=>genWeights(active,true);return}
+  n.innerHTML='权重值：<b style="color:var(--warn)">示例（演示模式，连接本地服务并加载模型后显示真实权重）</b>'}
+const _genTried={};
+async function genWeights(name,force){   // 直接从内存里已加载的模型读取，几秒钟，不需要重新加载
+  if(!force&&_genTried[name])return;_genTried[name]=1;WSTATE='loading';noteData();
+  try{await api('/api/weights/generate',{});WSTATE='';await loadWeightsFor(name)}catch(e){WSTATE='error:'+e.message;noteData()}}
 

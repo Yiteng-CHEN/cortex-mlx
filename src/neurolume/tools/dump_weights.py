@@ -23,6 +23,45 @@ def pick(n: int, grid: int) -> list[int]:
     return [round(k * (n - 1) / (grid - 1)) for k in range(grid)]
 
 
+def dump_from_model(model, model_id: str, key: str, grid: int, out_dir: Path, log=print) -> Path:
+    """Strided exact sample of each layer's 4 weight matrices from an already loaded model.
+
+    Used by the CLI above and by the server, which runs it on the model that is already in memory
+    (no second load). Works through the layer probe's wrapper, which forwards attributes.
+    """
+    import mlx.core as mx
+    from neurolume.backends import mlxutil
+
+    blocks, where = mlxutil.find_layers(model)
+    layers = []
+    for i, blk in enumerate(blocks):
+        entry = []
+        for name in MATS:
+            try:
+                mod = reduce(getattr, name.split("."), blk)
+            except AttributeError:       # e.g. linear-attention layers have no q_proj
+                entry.append({"name": name, "shape": [1, 1], "std": 1e-6, "v": [0.0] * (grid ** 2)})
+                continue
+            w = mod.weight
+            if hasattr(mod, "scales"):
+                w = mx.dequantize(w, mod.scales, getattr(mod, "biases", None),
+                                  group_size=mod.group_size, bits=mod.bits)
+            rows, cols = w.shape
+            ri, ci = pick(rows, grid), pick(cols, grid)
+            sub = w[mx.array(ri)][:, mx.array(ci)].astype(mx.float32)
+            sd = float(mx.std(w.astype(mx.float32)))
+            entry.append({"name": name, "shape": [rows, cols], "std": round(sd, 6),
+                          "v": [round(x, 5) for x in sub.reshape(-1).tolist()]})
+            del w, sub
+        layers.append({"i": i, "m": entry})
+        log(f"layer {i + 1}/{len(blocks)}")
+    out = Path(out_dir) / f"weights-{key}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"candidate": key, "model": model_id, "grid": grid,
+                               "layers_attr": where, "layers": layers}, separators=(",", ":")))
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--candidate", help="candidate name from the config")
@@ -46,35 +85,7 @@ def main() -> int:
     else:
         model_id, tok, key = a.repo, None, a.key
     model, _ = mlxutil.load_model(model_id, tok)
-    blocks, where = mlxutil.find_layers(model)
-
-    layers = []
-    for i, blk in enumerate(blocks):
-        entry = []
-        for name in MATS:
-            try:
-                mod = reduce(getattr, name.split("."), blk)
-            except AttributeError:       # e.g. linear-attention layers have no q_proj
-                entry.append({"name": name, "shape": [1, 1], "std": 1e-6, "v": [0.0] * (a.grid ** 2)})
-                continue
-            w = mod.weight
-            if hasattr(mod, "scales"):
-                w = mx.dequantize(w, mod.scales, getattr(mod, "biases", None),
-                                  group_size=mod.group_size, bits=mod.bits)
-            rows, cols = w.shape
-            ri, ci = pick(rows, a.grid), pick(cols, a.grid)
-            sub = w[mx.array(ri)][:, mx.array(ci)].astype(mx.float32)
-            sd = float(mx.std(w.astype(mx.float32)))
-            entry.append({"name": name, "shape": [rows, cols], "std": round(sd, 6),
-                          "v": [round(x, 5) for x in sub.reshape(-1).tolist()]})
-            del w, sub
-        layers.append({"i": i, "m": entry})
-        print(f"layer {i + 1}/{len(blocks)}", flush=True)
-
-    out = Path(a.out or (cfg.data_dir / "weights")) / f"weights-{key}.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"candidate": key, "model": model_id, "grid": a.grid,
-                               "layers_attr": where, "layers": layers}, separators=(",", ":")))
+    out = dump_from_model(model, model_id, key, a.grid, Path(a.out or (cfg.data_dir / "weights")))
     print("saved:", out, f"({out.stat().st_size / 1e3:.0f} KB)")
     return 0
 

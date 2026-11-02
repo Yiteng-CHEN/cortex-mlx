@@ -54,14 +54,17 @@
     </span>
     <button id="btnSig" type="button" title="增强：放大层与层之间的差别，便于观察；原始：直接按测量值的比例显示">显示：增强</button>
     <button id="btnLearn" type="button">这张图怎么看？</button>
-    <button id="step" type="button">训练一步（示例）</button>
+    <button id="step" type="button" title="打开训练向导，用你的数据真正训练一次">去训练…</button>
     <span id="dataNote"></span>
   </div>
   <div class="nw" id="nwrap"><div class="gut" id="gut"></div><div class="scroller" id="scroller"><canvas id="net"></canvas></div></div>
   <div class="lensv" id="lensv" hidden></div>
   <div class="tl" id="tl" hidden>
     <div class="tlh"><span id="tlLab"></span><span class="sp"></span>
-      <label class="hint">逐层预测显示 <select id="lensDen" aria-label="逐层预测显示哪些层"><option value="1">全部层</option><option value="2">每 2 层</option><option value="4">每 4 层</option></select></label>
+      <span class="lensctl" id="lensCtl"><span class="hint">逐层预测显示</span>
+        <span class="seg" id="lensPre" role="group" aria-label="快速选择显示哪些层"><button type="button" data-p="all">全部层</button><button type="button" data-p="half">后一半</button><button type="button" data-p="last16">最后 16 层</button></span>
+        <span class="hint">从</span><select id="lensFrom" aria-label="从第几层开始显示"></select><span class="hint">到</span><select id="lensTo" aria-label="显示到第几层"></select>
+        <select id="lensStep" aria-label="每隔几层显示一层"><option value="1">每一层都显示</option><option value="2">隔一层显示一层</option><option value="4">每 4 层显示一层</option></select></span>
       <button id="tlPlay" type="button">▶ 回放</button><button id="tlLatest" type="button" title="取消选中，回到最近一次回答的全部内容">看最近一次回答</button></div>
     <canvas id="tlc" aria-label="整段回答的逐字逐层活动热力图：横向是每个字，纵向是每一层；点击或拖动回看"></canvas>
     <input type="range" id="tlr" min="0" max="0" value="0" aria-label="选择第几个字">

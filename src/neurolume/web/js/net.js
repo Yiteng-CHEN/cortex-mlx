@@ -55,7 +55,7 @@ net.addEventListener('pointermove',ev=>{
   let t=`<b>第 ${l} 层 · ${MATS[k].name}</b><br>位置：行 ${pick(sh[0],r)} / ${sh[0]}，列 ${pick(sh[1],c)} / ${sh[1]}<br>权重：${w.v[i].toFixed(5)}`+(realWeights?'':'（示例）')+`<br>该矩阵标准差：${w.std.toFixed(4)}`;
   if(mode==='infer')t+=`<br>该层当前活动：${act[l].toFixed(2)}${SIM?'（模拟）':''}`+(lastRaw&&!SIM&&lastRaw[l]!=null?`<br>测量值：${lastRaw[l].toFixed(4)}`:'');
   t+=`<br><span style="color:var(--mute)">${MAT_EXPL[k]}</span>`;
-  if(mode==='train')t+=`<br>ΔW：${dW[l][k][i]>=0?'+':''}${dW[l][k][i].toExponential(2)}（${deltaReal?'真实，来自适配器':'示例'}）`;
+  if(mode==='train')t+=deltaReal?`<br>ΔW：${dW[l][k][i]>=0?'+':''}${dW[l][k][i].toExponential(2)}（真实，来自适配器）`:'<br>ΔW：还没有训练结果';
   tip.innerHTML=t;tip.hidden=false;
   const tw=tip.offsetWidth,th=tip.offsetHeight;tip.style.left=Math.min(innerWidth-tw-8,ev.clientX+14)+'px';tip.style.top=Math.max(8,Math.min(innerHeight-th-8,ev.clientY+14))+'px';
 });
@@ -67,9 +67,9 @@ const MAT_EXPL=['Q（查询）：这一层的每个字“想找什么信息”',
 function keyText(){
   $('key').innerHTML={
    infer:`<span>低<i class="grad"></i>高：该层这一步对当前 token 的改动幅度${SIM?'（模拟）':''}</span><span>连线发光 = 相邻两层同时活跃，亮点沿线移动</span>`,
-   train:`<span><i class="sw" style="background:#b8e36a"></i>权重增大</span><span><i class="sw" style="background:#ff7850"></i>权重减小</span><span>${deltaReal?'ΔW 来自适配器的真实值（与权重图同一位置）':'ΔW 为示例；训练后会换成适配器的真实值'}</span>`,
+   train:`<span><i class="sw" style="background:#b8e36a"></i>权重增大</span><span><i class="sw" style="background:#ff7850"></i>权重减小</span><span>${deltaReal?'ΔW 来自适配器的真实值（与权重图同一位置）':'还没有训练结果：点“去训练…”完成一次训练后，这里显示适配器真实改动的位置和大小'}</span>`,
    lens:`<span>每一列是一个生成的字，每一行是一层：格子里是这一层“如果在这里停下”最可能输出的字，颜色越深越有把握。最下面一行是模型真正输出的字。</span>`,
    weights:`<span><i class="sw" style="background:#ff9a52"></i>正权重</span><span><i class="sw" style="background:#4cc3d9"></i>负权重</span><span>颜色深浅 = |权重| ÷ 该矩阵标准差（3σ 封顶）</span>`}[mode]}
 $('modes').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;mode=b.dataset.m;setMode()});
-$('step').onclick=trainStep;
+$('step').onclick=()=>openTrain();
 

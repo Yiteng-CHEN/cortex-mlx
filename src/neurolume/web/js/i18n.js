@@ -48,6 +48,15 @@ const EN=[
 ["我自己的 SearXNG（更稳定、更隐私，需要自己部署）","My own SearXNG (more stable and private, you host it)"],
 ["SearXNG 地址，如 http://localhost:8080","SearXNG address, e.g. http://localhost:8080"],["SearXNG 地址","SearXNG address"],
 ["保存","Save"],
+["后一半","Second half"],["最后 16 层","Last 16"],["从","from"],["到","to"],["每一层都显示","every layer"],["隔一层显示一层","every 2nd layer"],["每 4 层显示一层","every 4th layer"],
+["快速选择显示哪些层","Quick layer ranges"],["从第几层开始显示","First layer to show"],["显示到第几层","Last layer to show"],["每隔几层显示一层","Layer spacing"],
+["去训练…","Train…"],["打开训练向导，用你的数据真正训练一次","Open the training wizard and really train on your data"],
+["读取真实权重","Read real weights"],["正在从已加载的模型读取真实权重…","Reading real weights from the loaded model…"],["还没有读取","not read yet"],["读取失败：","read failed: "],
+["示例（演示模式，连接本地服务并加载模型后显示真实权重）","sample (demo mode; real weights appear once the local service runs and a model is loaded)"],
+["还没有训练结果","no training result yet"],["还没有训练结果：点“去训练…”完成一次训练后，这里显示适配器真实改动的位置和大小","No training result yet: after you train once (\"Train…\"), this shows where and how much the adapter really changed"],
+["还没有训练过的适配器。点“去训练…”用你的数据训练一次，完成后这里显示真实的各层改变幅度，并且可以随时回来查看。","No adapter trained yet. Click \"Train…\" to train on your data; afterwards this shows the real per-layer change, and you can come back any time."],
+["（真实，来自适配器）"," (real, from the adapter)"],["需要先加载一个真实模型","Load a real model first"],
+
 // ---- 回答时间轴 / 逐层预测 / 训练回看
 ["选中的内容","Selection"],["最近一次回答","Latest answer"],["正在生成","Generating"],[" · 拖动或点击热力图回看任意一个字"," · drag or click the heatmap to revisit any token"],
 ["逐层预测显示","Logit lens shows"],["逐层预测显示哪些层","Which layers the logit lens shows"],["全部层","all layers"],["每 2 层","every 2nd layer"],["每 4 层","every 4th layer"],

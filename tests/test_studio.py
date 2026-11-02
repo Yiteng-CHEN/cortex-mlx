@@ -179,3 +179,46 @@ class AlignerTest(unittest.TestCase):
         self.assertEqual(a.take(), "S0")
         self.assertEqual(a.take(), "S1")  # final token: no further step was started
         self.assertIsNone(a.take())
+
+
+class WeightsGenerateTest(unittest.TestCase):
+    def test_generates_from_loaded_model_without_reloading(self):
+        from neurolume.config import load_config
+        from neurolume.server.app import serve
+        from neurolume.tools import dump_weights
+        calls = []
+
+        def fake_dump(model, model_id, key, grid, out_dir, log=print):
+            calls.append((model, key))
+            out = Path(out_dir) / f"weights-{key}.json"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps({"layers": []}))
+            return out
+
+        class M:
+            num_layers = 2
+            _model = "MODEL"
+            def stream_chat(self, messages, **kw):
+                yield {"text": "x"}
+        orig = dump_weights.dump_from_model
+        dump_weights.dump_from_model = fake_dump
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                os.environ["NEUROLUME_DATA_DIR"] = d
+                try:
+                    httpd = serve(load_config(), port=0, block=False, loader=lambda n: M())
+                finally:
+                    os.environ.pop("NEUROLUME_DATA_DIR")
+                threading.Thread(target=httpd.serve_forever, daemon=True).start()
+                base = f"http://127.0.0.1:{httpd.server_address[1]}"
+                st = httpd.neurolume_state
+                st.select("devstral-small-2")
+                r = urllib.request.Request(base + "/api/weights/generate", b"{}", {"Content-Type": "application/json"})
+                with urllib.request.urlopen(r) as x:
+                    self.assertTrue(json.load(x)["ok"])
+                self.assertEqual(calls, [("MODEL", "devstral-small-2")])
+                with urllib.request.urlopen(base + "/api/weights?model=devstral-small-2") as x:
+                    self.assertEqual(json.load(x), {"layers": []})
+                httpd.shutdown(); httpd.server_close()
+        finally:
+            dump_weights.dump_from_model = orig
