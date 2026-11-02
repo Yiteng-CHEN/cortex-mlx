@@ -12,6 +12,10 @@ setSig(SIGRAW);$('btnSig').onclick=()=>setSig(!SIGRAW);
 let LATEST=null,SRC=null,CUR=-1,PIN=null,tlTimer=null,tlRaf=0,selDriven=false;
 let LENS_DEN=1;try{LENS_DEN=+(localStorage.getItem('neurolume.lensDen')||1)||1}catch(_){}
 const ftok=f=>f.tok!=null?f.tok:f.t;                       // 模型真正输出的这个字（单个 token）
+// 一个汉字常被拆成 2~3 个字节级 token，单独解码会是乱码“�”：显示为 ◇，并在提示里说明
+const PART='\uFFFD',isPart=t=>String(t).indexOf(PART)>=0;
+const dispTok=t=>isPart(t)?'◇':showTok(t);
+const dispOut=f=>{const o=ftok(f);return isPart(o)?(f.t&&!isPart(f.t)?showTok(f.t):'◇'):showTok(o)};
 function srcIdx(){if(!SRC)return[];const a=SRC.a||0,b=SRC.b==null||SRC.b<0?SRC.frames.length-1:SRC.b;const o=[];for(let i=a;i<=b;i++)o.push(i);return o}
 // 某个字在第几层“定下来”：从这一层起，后面每一层的预测都等于最终输出
 function lockLayer(f){if(!f.lens||!f.lens.length)return null;const rows=[...f.lens].sort((x,y)=>x[0]-y[0]),out=ftok(f);let L=null;
@@ -35,7 +39,7 @@ function drawTimeline(){
   if(k>=0){g.strokeStyle=isDark?'#fff':'#000';g.lineWidth=2;g.strokeRect(k*cw+1,1,Math.max(2,cw-2),h-2)}
   $('tlr').max=n-1;$('tlr').value=k>=0?k:n-1;
   const f=SRC.frames[k>=0?CUR:idx[n-1]],lk=f&&lockLayer(f);
-  $('tlLab').textContent=(selDriven?'选中的内容':(busy?'正在生成':'最近一次回答'))+` · ${n} 个字`+(k>=0?` · 第 ${k+1} 个：「${showTok(ftok(f))}」`+(lk!=null?` · 从第 ${lk} 层起就定下来了`:''):' · 拖动或点击热力图回看任意一个字');
+  $('tlLab').textContent=(selDriven?'选中的内容':(busy?'正在生成':'最近一次回答'))+` · ${n} 个字`+(k>=0?` · 第 ${k+1} 个：「${dispOut(f)}」`+(lk!=null?` · 从第 ${lk} 层起就定下来了`:''):' · 拖动或点击热力图回看任意一个字');
 }
 function tlPick(i){if(!SRC||!SRC.frames[i])return;CUR=i;const f=SRC.frames[i];
   if(f.e){act.fill(0);pushEnergy(f.e,false);PIN=normMatrix([i])[0]}tlRender()}
@@ -73,9 +77,9 @@ function drawLens(){
   const layers=all.filter((l,j)=>j%LENS_DEN===0||l===last);
   const locks=cols.map(i=>lockLayer(F[i]));
   const cell=(i,l,c)=>{const r=F[i].lens.find(x=>x[0]===l);if(!r)return'<td></td>';const p=r[2],a=Math.round(12+70*p),lk=locks[c]!=null&&l>=locks[c];
-    return `<td class="${lk?'lock':''}${l===locks[c]?' lock1':''}${i===CUR?' cur':''}" data-i="${i}" title="L${l} · p=${p}${lk?' · 已等于最终输出':''}" style="background:color-mix(in srgb, var(--accent) ${a}%, transparent)">${escH(showTok(r[1]))}</td>`};
+    return `<td class="${lk?'lock':''}${l===locks[c]?' lock1':''}${i===CUR?' cur':''}" data-i="${i}" title="L${l} · p=${p}${lk?' · 已等于最终输出':''}${isPart(r[1])?' · ◇ = 一个汉字或符号的一部分（多字节编码的片段，单独无法显示）':''}" style="background:color-mix(in srgb, var(--accent) ${a}%, transparent)">${escH(dispTok(r[1]))}</td>`};
   v.innerHTML=`<table><tbody>${layers.map(l=>`<tr><th>L${l}</th>${cols.map((i,c)=>cell(i,l,c)).join('')}</tr>`).join('')}
-    <tr class="out"><th>输出</th>${cols.map(i=>`<td data-i="${i}" class="${i===CUR?'cur':''}">${escH(showTok(ftok(F[i])))}</td>`).join('')}</tr>
+    <tr class="out"><th>输出</th>${cols.map(i=>`<td data-i="${i}" class="${i===CUR?'cur':''}"${isPart(ftok(F[i]))?' title="◇ = 一个汉字或符号的一部分（多字节编码的片段），合起来才是完整的字"':''}>${escH(dispOut(F[i]))}</td>`).join('')}</tr>
     <tr class="lk"><th>定下来</th>${locks.map((L,c)=>`<td data-i="${cols[c]}">${L==null?'—':'L'+L}</td>`).join('')}</tr></tbody></table>`;
   v.querySelectorAll('td[data-i]').forEach(td=>td.onclick=()=>tlPick(+td.dataset.i))}
 

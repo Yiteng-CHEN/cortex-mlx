@@ -54,7 +54,7 @@ const EN=[
 ["取消选中，回到最近一次回答的全部内容","Clear the selection and show the whole latest answer"],["看最近一次回答","Latest answer"],
 ["整段回答的逐字逐层活动热力图：横向是每个字，纵向是每一层；点击或拖动回看","Per-token, per-layer activity of the whole answer: tokens across, layers down; click or drag to revisit"],
 ["选择第几个字","Choose a token"],["横向：回答里的每个字 · 纵向：第 0 层（上）到最后一层（下） · 在对话里选中一段 AI 回答，就只看那一段","Across: every token of the answer · Down: layer 0 (top) to the last layer (bottom) · Select part of an AI answer in the chat to see only that part"],
-["定下来","Settled"],["已等于最终输出","already equals the final output"],
+["定下来","Settled"],[" · ◇ = 一个汉字或符号的一部分（多字节编码的片段，单独无法显示）"," · ◇ = part of a character (a fragment of a multi-byte encoding that cannot be shown alone)"],["◇ = 一个汉字或符号的一部分（多字节编码的片段），合起来才是完整的字","◇ = part of a character (a fragment of a multi-byte encoding); together they form the full character"],["已等于最终输出","already equals the final output"],
 ["打开这个视图后再提问，就能看到每一层在“猜”下一个字。","Ask something with this view open to see every layer \"guess\" the next token."],
 ["还没有训练过的适配器：层图里现在是示例 ΔW。训练完成后，这里会显示真实的各层改变幅度，并且可以随时回来查看。","No trained adapter yet: the layer map shows a sample ΔW. After training, this shows the real per-layer change, and you can come back to it any time."],
 ["查看适配器 ","Viewing adapter "],["选择要查看的适配器","Choose an adapter to view"],[" · 验证损失 "," · validation loss "],
