@@ -104,24 +104,27 @@ class MLXBackend:
 
         formatted = self._format_messages(messages)
         if self._probe:
+            self._probe.start()
             self._probe.enabled = True
             if lens:
                 try:
                     self._probe.lens = self._lens()
-                    step = max(1, self._probe.n // 16)       # ~16 evenly spaced layers + the last one
-                    self._probe.lens_layers = set(range(step - 1, self._probe.n, step)) | {self._probe.n - 1}
+                    self._probe.lens_layers = set(range(self._probe.n))   # all layers: one batched head pass
                 except AttributeError:
                     self._probe.lens = None
         try:
             for resp in stream_generate(self._model, self._tokenizer, formatted,
                                         max_tokens=max_tokens, sampler=make_sampler(temp=temperature)):
-                out = {"text": resp.text,
-                       "energy": self._probe.collect() if self._probe else None,
+                out = {"text": resp.text, "energy": None,
                        "tps": round(getattr(resp, "generation_tps", 0.0) or 0.0, 1) or None}
-                if self._probe and self._probe.lens is not None:
-                    got = self._probe.collect_lens()
+                if self._probe:
+                    energy, got = self._probe.take()
+                    out["energy"] = energy
                     if got:
                         out["lens"] = [[l, self.decode_token(t), p] for l, t, p in got]
+                    tok = getattr(resp, "token", None)
+                    if tok is not None:
+                        out["token"] = self.decode_token(int(tok))
                 yield out
         finally:
             if self._probe:

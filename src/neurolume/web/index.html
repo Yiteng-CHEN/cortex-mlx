@@ -59,6 +59,15 @@
   </div>
   <div class="nw" id="nwrap"><div class="gut" id="gut"></div><div class="scroller" id="scroller"><canvas id="net"></canvas></div></div>
   <div class="lensv" id="lensv" hidden></div>
+  <div class="tl" id="tl" hidden>
+    <div class="tlh"><span id="tlLab"></span><span class="sp"></span>
+      <label class="hint">逐层预测显示 <select id="lensDen" aria-label="逐层预测显示哪些层"><option value="1">全部层</option><option value="2">每 2 层</option><option value="4">每 4 层</option></select></label>
+      <button id="tlPlay" type="button">▶ 回放</button><button id="tlLatest" type="button" title="取消选中，回到最近一次回答的全部内容">看最近一次回答</button></div>
+    <canvas id="tlc" aria-label="整段回答的逐字逐层活动热力图：横向是每个字，纵向是每一层；点击或拖动回看"></canvas>
+    <input type="range" id="tlr" min="0" max="0" value="0" aria-label="选择第几个字">
+    <div class="hint tlk">横向：回答里的每个字 · 纵向：第 0 层（上）到最后一层（下） · 在对话里选中一段 AI 回答，就只看那一段</div>
+  </div>
+  <div class="trainbars" id="trainbars" hidden><div class="hint" id="trainbarsLab"></div><div class="lbars" id="trainbarsBars"></div></div>
   <div class="key" id="key"></div>
 </div>
 <div id="tip" hidden></div>

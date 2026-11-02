@@ -32,12 +32,22 @@ Hover a tile to see the measured value.
   generated for aesthetics. **Where a discharge travels across the sphere is not a measurement.**
 - When nothing is running the brain is completely calm.
 
-## Logit lens ("Logit lens" view)
+## Logit lens ("Logit lens" view) and the answer timeline
 
-For ~16 evenly spaced layers plus the last one, the hidden state at the last position is passed through the model's
-own final norm and output head (nostalgebraist, 2020). The cell shows the most likely token and its probability.
-The last layer's row equals the real prediction. Off unless the view is open, because it costs about one extra
-output-head matmul per lens layer per token.
+For **every layer**, the hidden state at the last position is passed through the model's own final norm and output
+head (nostalgebraist, 2020). All layers go through the head in one batched matmul, so the head's weights are read once
+and the cost is about one extra output pass per token. Cells show the most likely token and its probability; the
+**Settled** row is the first layer from which every later layer already predicts the final output. Early layers often
+show gibberish, punctuation or other languages: their representations are not yet in the output space, which is
+expected for a plain logit lens.
+
+**Alignment.** mlx-lm computes the forward pass for token *t+1* before it yields token *t*. The probe therefore keeps
+one snapshot per forward pass and reports, for each yielded token, the pass that *produced* it (`Aligner` in
+`telemetry/probe.py`). Per-layer activity uses the same alignment. Before this fix the lens column was one token ahead
+of the output row.
+
+The **timeline** under the layer views is a token × layer heatmap of the whole answer (or of the part you select in
+the chat). Clicking or dragging pins the brain and layer views to that token.
 
 ## Training views
 
@@ -61,6 +71,7 @@ output-head matmul per lens layer per token.
   - “原始”显示：测量值除以最近的最大值，按比例显示；
   - “增强”显示（默认）：结合每层相对自己的变化和相对其他层的差别再平方，便于看出变化，但会放大差异。
 - **脑图（球体 / 星云）**：每一圈 / 每段高度对应一层，左侧刻度准确。金色放电只在模型生成或训练时出现，频率跟随显卡/内存占用和逐层活动；**放电在球面上的走向是为了美观生成的，不是测量值**。
-- **逐层预测（logit lens）**：把约 16 个层的中间结果送进模型自己的最终归一化和输出层，显示最可能的字和概率；最后一层就是真实输出。只在打开该视图时计算。
+- **逐层预测（logit lens）**：把每一层的中间结果送进模型自己的最终归一化和输出层（一次批量计算），显示最可能的字和概率；“定下来”一行是从第几层起每一层都猜中最终输出。前面的层常出现乱码，是正常现象。每个字的数据对应“产生这个字的那一次计算”（mlx-lm 会提前算下一个字，探针已按此对齐）。只在打开该视图时计算。
+- **回答时间轴**：整段回答（或在对话里选中的部分）的“字 × 层”活动热力图，点击或拖动可以把脑图和层图定格在任意一个字。
 - **训练视图**：ΔW 直接从适配器文件计算（`scale·B·A`）；柱状图是每层 `‖ΔW‖`；“验证集损失 训练前 → 训练后”来自 mlx-lm 训练日志。
 - **模拟数据**：演示页面和 demo 后端的所有信号都是模拟的，界面会标注“模拟”；“训练一步（示例）”按钮在没有真实适配器前显示的是示例 ΔW。

@@ -121,3 +121,19 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
 .nw[hidden],.lensv[hidden],#step[hidden]{display:none}
 /* 窄窗口（如浏览器侧栏）：模型选择和按钮分成两行，避免互相遮挡 */
 @media (max-width:1100px){.chead{flex-wrap:wrap}.chead .lhs{flex:1 1 100%}.chead .tools{width:100%;grid-template-columns:repeat(4,1fr);margin-left:0}}
+
+/* ---- 回答时间轴 + 逐层预测表 ---- */
+.tl{padding:8px 12px 12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.tl[hidden],.trainbars[hidden]{display:none}
+.tlh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:12px var(--mono);color:var(--fg)}
+.tlh select{height:28px;margin:0}
+#tlc{width:100%;display:block;border-radius:6px;cursor:crosshair;background:var(--inset)}
+#tlr{width:100%}
+.lensv{max-height:520px;overflow:auto}
+.lensv th{position:sticky;left:0;background:var(--inset);z-index:1}
+.lensv tr.out td,.lensv tr.out th{position:sticky;bottom:28px;background:var(--panel);z-index:2}
+.lensv tr.lk td,.lensv tr.lk th{position:sticky;bottom:0;background:var(--panel);color:var(--mute);font-weight:400;z-index:2}
+.lensv td{cursor:pointer}
+.lensv td.lock{box-shadow:inset 0 -2px 0 #58dc58}
+.lensv td.lock1{box-shadow:inset 0 -2px 0 #58dc58,inset 2px 0 0 #58dc58}
+.trainbars{padding:8px 12px;border-top:1px solid var(--line)}

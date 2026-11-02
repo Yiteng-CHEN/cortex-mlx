@@ -165,3 +165,17 @@ class HttpStudioTest(unittest.TestCase):
             meta2 = json.loads(post("/api/datagen/save", {"name": "gen", "items": [{"q": f"q{i}", "a": f"a{i}"} for i in range(25)]}))
             self.assertEqual(meta2["n_train"] + meta2["n_valid"], 25)
             httpd.shutdown(); httpd.server_close()
+
+
+class AlignerTest(unittest.TestCase):
+    def test_reports_the_pass_that_produced_each_token(self):
+        from neurolume.telemetry.probe import Aligner
+        a = Aligner()
+        # prefill chunk, last prompt step (-> token 0), step(token 0) (-> token 1), then token 0 is yielded
+        for s in ("prefill", "P0", "S0"):
+            a.push(s)
+        self.assertEqual(a.take(), "P0")
+        a.push("S1")                      # step(token 1) runs before token 1 is yielded
+        self.assertEqual(a.take(), "S0")
+        self.assertEqual(a.take(), "S1")  # final token: no further step was started
+        self.assertIsNone(a.take())

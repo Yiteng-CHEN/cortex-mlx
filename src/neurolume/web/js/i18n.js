@@ -48,6 +48,18 @@ const EN=[
 ["我自己的 SearXNG（更稳定、更隐私，需要自己部署）","My own SearXNG (more stable and private, you host it)"],
 ["SearXNG 地址，如 http://localhost:8080","SearXNG address, e.g. http://localhost:8080"],["SearXNG 地址","SearXNG address"],
 ["保存","Save"],
+// ---- 回答时间轴 / 逐层预测 / 训练回看
+["选中的内容","Selection"],["最近一次回答","Latest answer"],["正在生成","Generating"],[" · 拖动或点击热力图回看任意一个字"," · drag or click the heatmap to revisit any token"],
+["逐层预测显示","Logit lens shows"],["逐层预测显示哪些层","Which layers the logit lens shows"],["全部层","all layers"],["每 2 层","every 2nd layer"],["每 4 层","every 4th layer"],
+["取消选中，回到最近一次回答的全部内容","Clear the selection and show the whole latest answer"],["看最近一次回答","Latest answer"],
+["整段回答的逐字逐层活动热力图：横向是每个字，纵向是每一层；点击或拖动回看","Per-token, per-layer activity of the whole answer: tokens across, layers down; click or drag to revisit"],
+["选择第几个字","Choose a token"],["横向：回答里的每个字 · 纵向：第 0 层（上）到最后一层（下） · 在对话里选中一段 AI 回答，就只看那一段","Across: every token of the answer · Down: layer 0 (top) to the last layer (bottom) · Select part of an AI answer in the chat to see only that part"],
+["定下来","Settled"],["已等于最终输出","already equals the final output"],
+["打开这个视图后再提问，就能看到每一层在“猜”下一个字。","Ask something with this view open to see every layer \"guess\" the next token."],
+["还没有训练过的适配器：层图里现在是示例 ΔW。训练完成后，这里会显示真实的各层改变幅度，并且可以随时回来查看。","No trained adapter yet: the layer map shows a sample ΔW. After training, this shows the real per-layer change, and you can come back to it any time."],
+["查看适配器 ","Viewing adapter "],["选择要查看的适配器","Choose an adapter to view"],[" · 验证损失 "," · validation loss "],
+[" · 每根柱子是一层被训练改变的总幅度（ΔW 大小），悬停层图看具体位置和数值"," · each bar is how much training changed a layer (size of ΔW); hover the layer map for positions and values"],
+
 // ---- 工作室：信号、逐层预测、回放、对比、导出、数据生成、图解
 ["每生成一个字，看看每一层“如果在这里停下”会预测什么（logit lens，需要真实模型）","For every generated token, see what each layer would predict \"if the model stopped here\" (logit lens; needs a real model)"],
 ["逐层预测","Logit lens"],["显示：增强","View: enhanced"],["显示：原始","View: raw"],
@@ -92,7 +104,7 @@ const EN=[
 ["线性注意力层","Linear-attention layers"],["Qwen3.6 里四层中有三层是线性注意力（DeltaNet）：不再逐个回看前面的字，而是维护一份不断更新的“记忆”，长文本时更快。层号旁边的 ◆ 表示全注意力层。","In Qwen3.6 three of every four layers use linear attention (DeltaNet): instead of looking back at each earlier token they keep a continuously updated \"memory\", which is faster on long text. A ◆ next to a layer number marks full attention."],
 ["MLP（门控、下投影）","MLP (gate, down-projection)"],["对每个字单独做的计算，很多“知识”存放在这里：门控决定打开哪些通道，下投影把结果写回去。","Per-token computation where much of the \"knowledge\" lives: the gate decides which channels open and the down-projection writes the result back."],
 ["训练时改了什么（LoRA）","What training changes (LoRA)"],["微调不会改动原模型文件，而是给部分矩阵加上一个很小的修正 ΔW = B×A。“训练”视图显示 ΔW 在哪里、是变大还是变小；训练完成面板里的柱子是每层改动的总量。","Fine-tuning doesn't touch the original model files; it adds a small correction ΔW = B×A to some matrices. The \"Train\" view shows where ΔW is and whether weights grow or shrink; the bars in the training-complete panel show each layer's total change."],
-["逐层预测（logit lens）","Logit lens"],["把某一层的中间结果直接送到模型的输出端，看看“如果在这一层停下”会输出什么字。通常前面的层在乱猜，越往后越接近最终答案——能看到答案是在第几层“想出来”的。","Send a layer's intermediate result straight to the output to see what token it would produce \"if the model stopped here\". Early layers usually guess wildly and later ones converge on the final answer — you can see at which layer the answer forms."],
+["逐层预测（logit lens）","Logit lens"],["把某一层的中间结果直接送到模型的输出端，看看“如果在这一层停下”会输出什么字。前面的层还没有形成能直接“读出来”的表示，常出现乱码、标点或别的语言，这是正常现象；越往后越接近最终答案。表格最下面的“定下来”一行，是从第几层起每一层都猜中了最终输出：数字越小，这个字越早被决定。下方的时间轴可以拖动回看整段回答里任意一个字。","Send a layer's intermediate result straight to the output to see what token it would produce \"if the model stopped here\". Early layers have not formed a readable representation yet, so gibberish, punctuation or other languages are normal; later layers converge on the final answer. The \"Settled\" row at the bottom is the layer from which every layer already predicts the final output: the smaller the number, the earlier that token was decided. Drag the timeline below to revisit any token of the answer."],
 ["更详细的说明见项目里的 docs/SIGNALS.md。","More detail in docs/SIGNALS.md in the project."],
 // ---- 服务端：工作室
 ["请先在上方选择一个适配器（训练结果），才能和原模型对比","Choose an adapter (training result) above first to compare with the original model"],["问题是空的","The question is empty"],
@@ -214,6 +226,7 @@ const EN=[
 // ---- 标点（最后统一处理）
 ];
 const EN_RX=[
+[/(\d+) 个字/g,"$1 tokens"],[/第 (\d+) 个：「/g,"token $1: “"],[/」/g,"”"],[/从第 (\d+) 层起就定下来了/g,"settled from layer $1 on"],
 [/第 (\d+)\/(\d+) 段/g,"piece $1/$2"],[/已处理 (\d+)\/(\d+) 段，得到 (\d+) 条/g,"Processed $1/$2 pieces, $3 items so far"],[/共 (\d+) 条。/g,"$1 items. "],[/保留第 (\d+) 条/g,"Keep item $1"],
 [/《([^》]*)》第 (\d+) 段/g,"“$1” passage $2"],[/（当前启用 (\d+) 段）/g,(m,n)=>" ("+n+" passage"+(n==1?"":"s")+" enabled)"],[/(\d+) 段/g,(m,n)=>n+" passage"+(n==1?"":"s")],[/([\d.]+) 万字/g,(m,n)=>Math.round(n*10)/10+"×10k chars"],[/^(\d) 训练$/,"$1 Train"],[/^(\d) 完成$/,"$1 Done"],[/(\d+) 时 /g,"$1 h "],[/(\d+) 分钟/g,"$1 min"],[/(\d+) 分(?!钟)/g,"$1 min"],
 [/已读取 (\d+) 个网页，正在整理回答/g,"Read $1 pages, preparing the answer"],

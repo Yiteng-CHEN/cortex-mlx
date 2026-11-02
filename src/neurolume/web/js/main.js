@@ -6,6 +6,7 @@ function frame(t){
   applyHoloTheme();
   const dt=Math.min(100,Math.max(0,t-(frame.t0||t)));frame.t0=t;const dk=Math.pow(.5,dt/380);  // 半衰期约 0.4 秒，和帧率无关
   for(let l=0;l<NL;l++)act[l]*=dk;
+  if(PIN&&!busy&&!trainRunning&&PIN.length===NL)for(let l=0;l<NL;l++)act[l]=Math.max(act[l],PIN[l]);   // 回看某个字时，层图保持在那一刻
   if(trainRunning&&glow.length===NL)for(let l=0;l<NL;l++)act[l]=Math.max(act[l],glow[l]*(.5+.35*Math.sin(t*.002+l*.6)));
   if(!drag&&!reduce)rotY+=vy;rig.rotation.y=rotY;rig.rotation.x=rotX;
   for(const step of [()=>updateHolo(t),()=>renderer.render(scene,camera),drawHud,()=>drawNet(t,isDark)]){

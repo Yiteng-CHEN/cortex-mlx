@@ -61,7 +61,8 @@ net.addEventListener('pointermove',ev=>{
 });
 net.addEventListener('pointerleave',()=>{hov=null;tip.hidden=true});
 function setMode(){document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.m===mode)));
-  const lens=mode==='lens';$('nwrap').hidden=lens;$('lensv').hidden=!lens;$('step').hidden=lens;if(lens&&typeof drawLens==='function')drawLens();keyText()}
+  const lens=mode==='lens';$('nwrap').hidden=lens;$('lensv').hidden=!lens;$('step').hidden=lens;$('trainbars').hidden=mode!=='train';
+  if(typeof tlRender==='function')tlRender();if(mode==='train'&&typeof reviewDelta==='function')reviewDelta();keyText()}
 const MAT_EXPL=['Q（查询）：这一层的每个字“想找什么信息”','输出：把注意力找到的信息写回这个字的表示里','门控：决定 MLP 里哪些“知识通道”打开','下投影：把 MLP 算出的结果压回原来的维度，写回去'];
 function keyText(){
   $('key').innerHTML={

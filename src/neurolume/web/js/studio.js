@@ -1,4 +1,4 @@
-// ======== 工作室：逐层预测（logit lens）、生成回放、效果对比、导出、训练数据生成、图解说明 ========
+// ======== 工作室：回答时间轴与逐层预测（logit lens）、效果对比、导出、训练数据生成、训练结果回看、图解说明 ========
 let CUR_ADAPTER=null;
 const escH=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const showTok=t=>JSON.stringify(String(t)).slice(1,-1).replace(/\\"/g,'"')||'∅';   // 让空格、换行看得见
@@ -7,33 +7,88 @@ const showTok=t=>JSON.stringify(String(t)).slice(1,-1).replace(/\\"/g,'"')||'∅
 function setSig(raw){SIGRAW=raw;try{localStorage.setItem('neurolume.sig',raw?'raw':'enh')}catch(_){}$('btnSig').textContent=raw?'显示：原始':'显示：增强'}
 setSig(SIGRAW);$('btnSig').onclick=()=>setSig(!SIGRAW);
 
-// ---- 逐层预测：最近 16 个字，每个字一列
-let LENSF=[],lensSel=-1;
-function pushLens(tok,rows){LENSF.push({tok,rows});if(LENSF.length>16)LENSF.shift();lensSel=-1;if(mode==='lens')drawLens()}
-function drawLens(frames,sel){
-  const F=frames||LENSF,s=sel==null?lensSel:sel,v=$('lensv');
-  if(!F.length){v.innerHTML=`<div class="empty">${!LIVE||SIM?'逐层预测需要连接真实模型。':'打开这个视图后再提问，就能看到每一层在“猜”下一个字。（会让生成稍慢一些）'}</div>`;return}
-  const layers=[...new Set(F.flatMap(f=>f.rows.map(r=>r[0])))].sort((a,b)=>a-b);
-  const cell=(f,l)=>{const r=f.rows.find(x=>x[0]===l);if(!r)return'<td></td>';const p=r[2],a=Math.round(15+70*p);
-    return `<td title="p=${p}" style="background:color-mix(in srgb, var(--accent) ${a}%, transparent)">${escH(showTok(r[1]))}</td>`};
-  v.innerHTML=`<table><tbody>${layers.slice(0,-1).map(l=>`<tr><th>L${l}</th>${F.map((f,i)=>cell(f,l).replace('<td',i===s?'<td class="cur"':'<td')).join('')}</tr>`).join('')}
-    <tr class="out"><th>输出</th>${F.map((f,i)=>`<td${i===s?' class="cur"':''}>${escH(showTok(f.tok))}</td>`).join('')}</tr></tbody></table>`}
+// ---- 回答时间轴：整段回答的逐字 × 逐层活动热力图，可以拖动回看任意一个字；逐层预测表跟着它走
+// 数据来源：在对话里选中一段 AI 回答 → 只看选中的部分；没有选中 → 最近一次回答的全部内容
+let LATEST=null,SRC=null,CUR=-1,PIN=null,tlTimer=null,tlRaf=0,selDriven=false;
+let LENS_DEN=1;try{LENS_DEN=+(localStorage.getItem('neurolume.lensDen')||1)||1}catch(_){}
+const ftok=f=>f.tok!=null?f.tok:f.t;                       // 模型真正输出的这个字（单个 token）
+function srcIdx(){if(!SRC)return[];const a=SRC.a||0,b=SRC.b==null||SRC.b<0?SRC.frames.length-1:SRC.b;const o=[];for(let i=a;i<=b;i++)o.push(i);return o}
+// 某个字在第几层“定下来”：从这一层起，后面每一层的预测都等于最终输出
+function lockLayer(f){if(!f.lens||!f.lens.length)return null;const rows=[...f.lens].sort((x,y)=>x[0]-y[0]),out=ftok(f);let L=null;
+  for(let i=rows.length-1;i>=0;i--){if(rows[i][1]===out)L=rows[i][0];else break}return L}
+function normMatrix(idx){ // 每个字的逐层活动 → 0..1（和上面的“增强 / 原始”显示一致）
+  const F=SRC.frames,rows=idx.map(i=>F[i].e).filter(Boolean);if(!rows.length)return null;const n=rows[0].length;
+  let gmx=1e-9;const mn=new Float32Array(n).fill(1e9),mx=new Float32Array(n).fill(-1e9);
+  for(const r of rows)for(let l=0;l<n;l++){gmx=Math.max(gmx,r[l]);mn[l]=Math.min(mn[l],r[l]);mx[l]=Math.max(mx[l],r[l])}
+  return idx.map(i=>{const r=F[i].e;if(!r)return null;if(SIGRAW)return r.map(v=>v/gmx);
+    let a=1e9,b=-1e9;for(const v of r){a=Math.min(a,v);b=Math.max(b,v)}
+    return r.map((v,l)=>Math.pow(clamp(.45*(v-mn[l])/(mx[l]-mn[l]+1e-9)+.55*(v-a)/(b-a+1e-9),0,1),2))})}
+function tlShow(){const has=SRC&&SRC.frames.length&&(mode==='infer'||mode==='lens');$('tl').hidden=!has;return has}
+function tlRender(){cancelAnimationFrame(tlRaf);tlRaf=requestAnimationFrame(()=>{if(tlShow())drawTimeline();if(mode==='lens')drawLens()})}
+function drawTimeline(){
+  const c=$('tlc'),d=Math.min(devicePixelRatio||1,2),w=c.clientWidth,idx=srcIdx(),n=idx.length,M=normMatrix(idx);
+  const L=(SRC.frames.find(f=>f.e)||{e:[]}).e.length||NL,h=Math.max(70,Math.min(150,L*2.2));
+  c.width=w*d;c.height=h*d;c.style.height=h+'px';const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);
+  if(!n)return;const cw=w/n,rh=h/L;
+  if(M)for(let j=0;j<n;j++){const r=M[j];if(!r)continue;for(let l=0;l<L;l++){const col=heat(r[l]);g.fillStyle=`rgb(${col[0]|0},${col[1]|0},${col[2]|0})`;g.fillRect(j*cw,l*rh,Math.ceil(cw),Math.ceil(rh))}}
+  const k=CUR>=0?idx.indexOf(CUR):-1;
+  if(k>=0){g.strokeStyle=isDark?'#fff':'#000';g.lineWidth=2;g.strokeRect(k*cw+1,1,Math.max(2,cw-2),h-2)}
+  $('tlr').max=n-1;$('tlr').value=k>=0?k:n-1;
+  const f=SRC.frames[k>=0?CUR:idx[n-1]],lk=f&&lockLayer(f);
+  $('tlLab').textContent=(selDriven?'选中的内容':(busy?'正在生成':'最近一次回答'))+` · ${n} 个字`+(k>=0?` · 第 ${k+1} 个：「${showTok(ftok(f))}」`+(lk!=null?` · 从第 ${lk} 层起就定下来了`:''):' · 拖动或点击热力图回看任意一个字');
+}
+function tlPick(i){if(!SRC||!SRC.frames[i])return;CUR=i;const f=SRC.frames[i];
+  if(f.e){act.fill(0);pushEnergy(f.e,false);PIN=normMatrix([i])[0]}tlRender()}
+function tlLive(frames){LATEST={frames};if(!selDriven){SRC={frames,a:0,b:-1};CUR=-1;PIN=null}tlRender()}
+function tlFinish(frames,bubbles){
+  LATEST={frames};for(const b of bubbles){const fr=frames.map((f,i)=>[f,i]).filter(([f])=>f.el===b);let pos=0;const text=b.textContent;
+    for(const [f] of fr){const ix=f.t?text.indexOf(f.t,pos):-1;if(ix>=0){f.o0=ix;f.o1=ix+f.t.length;pos=f.o1}else{f.o0=f.o1=pos}}
+    b._msg={frames,idx:fr.map(x=>x[1])}}
+  if(!selDriven){SRC={frames,a:0,b:-1};CUR=-1}tlRender()}
+// 在对话里选中一段 AI 回答 → 时间轴和逐层预测只看这一段
+function selRange(){const s=getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;const r=s.getRangeAt(0);
+  const n=r.commonAncestorContainer,b=(n.nodeType===1?n:n.parentElement).closest('.m.a');if(!b||!b._msg)return null;
+  const pre=document.createRange();pre.selectNodeContents(b);pre.setEnd(r.startContainer,r.startOffset);const s0=pre.toString().length,s1=s0+r.toString().length;
+  const hit=b._msg.idx.filter(i=>{const f=b._msg.frames[i];return f.o1>s0&&f.o0<s1});return hit.length?{frames:b._msg.frames,a:hit[0],b:hit[hit.length-1]}:null}
+let _selT=0;document.addEventListener('selectionchange',()=>{clearTimeout(_selT);_selT=setTimeout(()=>{const r=selRange();
+  if(r){selDriven=true;SRC=r;CUR=-1;PIN=null;tlRender()}else if(selDriven){selDriven=false;if(LATEST)SRC={frames:LATEST.frames,a:0,b:-1};CUR=-1;PIN=null;tlRender()}},150)});
+// 交互：点击/拖动热力图、滑块、回放
+(()=>{const c=$('tlc');let down=false;const at=e=>{const idx=srcIdx();if(!idx.length)return;const r=c.getBoundingClientRect();tlPick(idx[clamp(Math.floor((e.clientX-r.left)/r.width*idx.length),0,idx.length-1)])};
+  c.addEventListener('pointerdown',e=>{down=true;c.setPointerCapture(e.pointerId);at(e)});c.addEventListener('pointermove',e=>{if(down)at(e)});c.addEventListener('pointerup',()=>down=false);
+  $('tlr').oninput=()=>{clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';const idx=srcIdx();tlPick(idx[+$('tlr').value])};
+  $('tlPlay').onclick=()=>{if(tlTimer){clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';return}const idx=srcIdx();if(!idx.length)return;
+    let k=CUR>=0?idx.indexOf(CUR):idx.length-1;if(k>=idx.length-1)k=-1;$('tlPlay').textContent='❚❚ 暂停';
+    tlTimer=setInterval(()=>{k++;if(k>=idx.length){clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';return}tlPick(idx[k])},110)};
+  $('tlLatest').onclick=()=>{getSelection().removeAllRanges();selDriven=false;if(LATEST)SRC={frames:LATEST.frames,a:0,b:-1};CUR=-1;PIN=null;tlRender()};
+  $('lensDen').value=String(LENS_DEN);$('lensDen').onchange=()=>{LENS_DEN=+$('lensDen').value;try{localStorage.setItem('neurolume.lensDen',LENS_DEN)}catch(_){}tlRender()};
+  addEventListener('resize',tlRender)})();
 
-// ---- 生成回放：拖动滑块，脑图和层图回到生成某个字的那一刻
-function addReplay(anchor,frames){
-  const bar=document.createElement('div');bar.className='rp-bar';
-  bar.innerHTML=`<button type="button">▶ 回放</button><input type="range" min="0" max="${frames.length-1}" value="${frames.length-1}" aria-label="回放位置"><span class="lab"></span><span class="tok"></span>`;
-  anchor.after(bar);const [btn,rng,lab,tok]=[bar.querySelector('button'),bar.querySelector('input'),bar.querySelector('.lab'),bar.querySelector('.tok')];
-  let timer=null;
-  const show=k=>{const f=frames[k];lab.textContent=`第 ${k+1}/${frames.length} 段`;tok.textContent=showTok(f.t);
-    if(f.e){act.fill(0);pushEnergy(f.e,false)}
-    const lf=frames.slice(Math.max(0,k-15),k+1).filter(x=>x.lens).map(x=>({tok:x.t,rows:x.lens}));
-    if(lf.length&&mode==='lens')drawLens(lf,lf.length-1)};
-  rng.oninput=()=>{clearInterval(timer);timer=null;btn.textContent='▶ 回放';show(+rng.value)};
-  btn.onclick=()=>{if(timer){clearInterval(timer);timer=null;btn.textContent='▶ 回放';return}
-    if(+rng.value>=frames.length-1)rng.value=0;btn.textContent='❚❚ 暂停';
-    timer=setInterval(()=>{const k=+rng.value;show(k);if(k>=frames.length-1){clearInterval(timer);timer=null;btn.textContent='▶ 回放';return}rng.value=k+1},120)};
-  show(frames.length-1)}
+// ---- 逐层预测表：选中的那个字前后若干列；每一行是一层（全部层或按密度抽取），最后一行是模型真正的输出
+function drawLens(){
+  const v=$('lensv'),idx=SRC?srcIdx().filter(i=>SRC.frames[i].lens):[];
+  if(!idx.length){v.innerHTML=`<div class="empty">${!LIVE||SIM?'逐层预测需要连接真实模型。':'打开这个视图后再提问，就能看到每一层在“猜”下一个字。'}</div>`;return}
+  const W=Math.max(4,Math.floor((v.clientWidth-60)/86));let k=CUR>=0?idx.indexOf(CUR):idx.length-1;if(k<0)k=idx.length-1;
+  const st=clamp(k-Math.floor(W*.6),0,Math.max(0,idx.length-W)),cols=idx.slice(st,st+W),F=SRC.frames;
+  const all=[...new Set(cols.flatMap(i=>F[i].lens.map(r=>r[0])))].sort((a,b)=>a-b),last=all[all.length-1];
+  const layers=all.filter((l,j)=>j%LENS_DEN===0||l===last);
+  const locks=cols.map(i=>lockLayer(F[i]));
+  const cell=(i,l,c)=>{const r=F[i].lens.find(x=>x[0]===l);if(!r)return'<td></td>';const p=r[2],a=Math.round(12+70*p),lk=locks[c]!=null&&l>=locks[c];
+    return `<td class="${lk?'lock':''}${l===locks[c]?' lock1':''}${i===CUR?' cur':''}" data-i="${i}" title="L${l} · p=${p}${lk?' · 已等于最终输出':''}" style="background:color-mix(in srgb, var(--accent) ${a}%, transparent)">${escH(showTok(r[1]))}</td>`};
+  v.innerHTML=`<table><tbody>${layers.map(l=>`<tr><th>L${l}</th>${cols.map((i,c)=>cell(i,l,c)).join('')}</tr>`).join('')}
+    <tr class="out"><th>输出</th>${cols.map(i=>`<td data-i="${i}" class="${i===CUR?'cur':''}">${escH(showTok(ftok(F[i])))}</td>`).join('')}</tr>
+    <tr class="lk"><th>定下来</th>${locks.map((L,c)=>`<td data-i="${cols[c]}">${L==null?'—':'L'+L}</td>`).join('')}</tr></tbody></table>`;
+  v.querySelectorAll('td[data-i]').forEach(td=>td.onclick=()=>tlPick(+td.dataset.i))}
+
+// ---- 训练结果回看：“训练”视图里随时查看任意一个适配器真实改动了哪些层
+let DELTA_ID=null;
+async function reviewDelta(force){
+  if(!LIVE||trainRunning)return;let list=[];try{list=(await api('/api/train/adapters')).adapters.filter(a=>!active||a.model===active)}catch(_){}
+  const bar=$('trainbars');bar.hidden=mode!=='train';
+  if(!list.length){$('trainbarsLab').textContent='还没有训练过的适配器：层图里现在是示例 ΔW。训练完成后，这里会显示真实的各层改变幅度，并且可以随时回来查看。';$('trainbarsBars').innerHTML='';return}
+  let id=force||(CUR_ADAPTER&&list.some(a=>a.id===CUR_ADAPTER)?CUR_ADAPTER:null)||DELTA_ID||list[0].id;if(!list.some(a=>a.id===id))id=list[0].id;
+  if(id!==DELTA_ID){await pullDelta(id);DELTA_ID=id}
+  $('trainbarsLab').innerHTML=`查看适配器 <select id="tbSel" aria-label="选择要查看的适配器">${list.map(a=>`<option value="${escH(a.id)}" ${a.id===id?'selected':''}>${escH(a.created)}${a.dataset?' · '+escH(a.dataset):''}${a.val_first!=null&&a.val_loss!=null?' · 验证损失 '+a.val_first.toFixed(2)+' → '+a.val_loss.toFixed(2):''}</option>`).join('')}</select> · 每根柱子是一层被训练改变的总幅度（ΔW 大小），悬停层图看具体位置和数值`;
+  $('tbSel').onchange=()=>reviewDelta($('tbSel').value);drawLayerBars($('trainbarsBars'))}
 
 // ---- 各层改变幅度（训练完成面板）
 function drawLayerBars(el){if(!el)return;const g=glow&&glow.length?glow:new Float32Array(NL);
@@ -120,6 +175,6 @@ const LEARN=[
  ['线性注意力层','Qwen3.6 里四层中有三层是线性注意力（DeltaNet）：不再逐个回看前面的字，而是维护一份不断更新的“记忆”，长文本时更快。层号旁边的 ◆ 表示全注意力层。'],
  ['MLP（门控、下投影）','对每个字单独做的计算，很多“知识”存放在这里：门控决定打开哪些通道，下投影把结果写回去。'],
  ['训练时改了什么（LoRA）','微调不会改动原模型文件，而是给部分矩阵加上一个很小的修正 ΔW = B×A。“训练”视图显示 ΔW 在哪里、是变大还是变小；训练完成面板里的柱子是每层改动的总量。'],
- ['逐层预测（logit lens）','把某一层的中间结果直接送到模型的输出端，看看“如果在这一层停下”会输出什么字。通常前面的层在乱猜，越往后越接近最终答案——能看到答案是在第几层“想出来”的。'],
+ ['逐层预测（logit lens）','把某一层的中间结果直接送到模型的输出端，看看“如果在这一层停下”会输出什么字。前面的层还没有形成能直接“读出来”的表示，常出现乱码、标点或别的语言，这是正常现象；越往后越接近最终答案。表格最下面的“定下来”一行，是从第几层起每一层都猜中了最终输出：数字越小，这个字越早被决定。下方的时间轴可以拖动回看整段回答里任意一个字。'],
 ];
 $('btnLearn').onclick=()=>{openOv('这张图怎么看？');$('mbody').innerHTML=`<div class="learn">${LEARN.map(([h,p])=>`<h4>${h}</h4><p>${p}</p>`).join('')}<p style="margin-top:12px">更详细的说明见项目里的 docs/SIGNALS.md。</p></div>`};
