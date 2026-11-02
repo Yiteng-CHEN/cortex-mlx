@@ -14,7 +14,11 @@ button,select{background:var(--panel);border:1px solid var(--line);border-radius
 button:disabled{opacity:.45;cursor:default}
 button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:12px;height:420px;margin-bottom:12px}
+.app{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(380px,1fr);gap:12px;height:calc(100vh - 42px);min-height:620px}
+.mon{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.mon .scan{flex:none;height:clamp(300px,44vh,520px)}
+.mon .net{flex:none}
+.app>.chat{min-height:0;height:100%}
 .scan{position:relative;border:1px solid #1b2433;border-radius:12px;overflow:hidden;background:radial-gradient(90% 80% at 50% 55%,#06222e 0%,#02090f 72%);min-width:0}
 #gl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
 .scan h1{position:absolute;left:14px;top:10px;margin:0;font:500 22px/1.1 var(--display);color:#e6e8ee;letter-spacing:-.01em;pointer-events:none}
@@ -96,7 +100,7 @@ input[type=text]{flex:1;min-width:180px;background:var(--inset);border:1px solid
 .drop.over{border-color:var(--accent);color:var(--fg)}
 .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}.kv div{border:1px solid var(--line);border-radius:8px;padding:6px 10px}.kv small{display:block;color:var(--mute);font-size:11px}.kv b{font:500 16px var(--mono)}
 pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--mute)}
-@media (max-width:860px){.hero{grid-template-columns:1fr;height:auto}.scan{height:300px}.chat{height:440px}}
+@media (max-width:1000px){.app{grid-template-columns:1fr;height:auto;min-height:0}.mon{overflow:visible;display:contents}.mon .scan{order:1;height:300px}.app>.chat{order:2;height:520px}.mon .net{order:3}}
 
 /* ---- studio: logit lens, replay, compare, layer bars ---- */
 .lensv{overflow-x:auto;padding:10px 12px;background:var(--inset);font:11px/1.3 var(--mono)}
@@ -146,3 +150,5 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
 .lensctl select{height:28px;margin:0;width:auto;min-width:0}
 .lensctl .seg button{padding:3px 9px}
 .lensctl .seg button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+/* 右侧聊天栏较窄：模型选择一行、功能按钮一行 */
+.app>.chat .chead{flex-wrap:wrap}.app>.chat .chead .lhs{flex:1 1 100%}.app>.chat .chead .tools{width:100%;grid-template-columns:repeat(4,1fr);margin-left:0}

@@ -172,7 +172,7 @@ function applyState(s){
 }
 async function boot(){
   dW=[...Array(NL)].map(()=>MATS.map(()=>new Float32Array(144)));synth();buildNet();setMode();
-  try{const r=await fetch('/api/state');if(!r.ok)throw 0;const s=await r.json();if(!s.models)throw 0;LIVE=true;$('step').hidden=true;applyState(s);
+  try{const r=await fetch('/api/state');if(!r.ok)throw 0;const s=await r.json();if(!s.models)throw 0;LIVE=true;applyState(s);
     sysMsg(s.active?`已连接。当前模型：${s.active}`:'已连接本地服务。请在上方选择一个模型开始。')}
   catch(e){LIVE=false;$('model').innerHTML='<option value="devstral-small-2">Devstral Small 2（演示）</option><option value="qwen3.6-27b">Qwen3.6-27B（演示）</option>';$('scanModel').textContent=KNOWN['devstral-small-2'].label;setBadge();
     sysMsg('当前是演示模式：回复和活动均为模拟。启动本地服务后会自动连接真实模型。');loadWeightsFor('devstral-small-2')}
