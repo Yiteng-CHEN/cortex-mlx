@@ -119,3 +119,5 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
 .learn h4{margin:10px 0 2px;font:500 14px var(--display)}
 .learn p{margin:0;color:var(--mute);font-size:13px;line-height:1.55}
 .nw[hidden],.lensv[hidden],#step[hidden]{display:none}
+/* 窄窗口（如浏览器侧栏）：模型选择和按钮分成两行，避免互相遮挡 */
+@media (max-width:1100px){.chead{flex-wrap:wrap}.chead .lhs{flex:1 1 100%}.chead .tools{width:100%;grid-template-columns:repeat(4,1fr);margin-left:0}}
