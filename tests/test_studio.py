@@ -255,19 +255,26 @@ class ConfidenceTest(unittest.TestCase):
 
 class ProbeCaptureTest(unittest.TestCase):
     def test_keeps_answer_positions_across_prefill_chunks(self):
-        import numpy as np
         from neurolume.telemetry.probe import LayerProbe
+
+        class Seq:                                    # minimal [1, T, 1] array: .shape and [0, a:b, :]
+            def __init__(self, vals):
+                self.v = list(vals)
+                self.shape = (1, len(self.v), 1)
+
+            def __getitem__(self, k):
+                return self.v[k[1]]
+
         blocks = [lambda x: x, lambda x: x]
         p = LayerProbe(blocks)
         p.enabled = True
         p.capture_range(3, 7)                         # positions 3..6 of a 9-token sequence
-        seq = np.arange(9, dtype=np.float32).reshape(1, 9, 1)
         for s in range(0, 9, 4):                     # chunked prefill: 4 + 4 + 1
-            chunk = seq[:, s:s + 4, :]
+            chunk = Seq(range(s, min(9, s + 4)))
             for b in blocks:
                 chunk = b(chunk)
         h = p.end_capture()
-        self.assertEqual([float(v) for part in h[1] for v in part[:, 0]], [3.0, 4.0, 5.0, 6.0])
+        self.assertEqual([v for part in h[1] for v in part], [3, 4, 5, 6])
         self.assertIsNone(p.capture)
 
 
