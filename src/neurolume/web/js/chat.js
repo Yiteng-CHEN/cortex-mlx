@@ -1,5 +1,6 @@
 // ======== 聊天 ========
 const history=[];
+let DEMO=null,DEMO_DELTA=null;   // 在线演示：回放一次真实录制（web/demo/），没有服务也能看到真实数据
 let AGENT=false;try{AGENT=localStorage.getItem('neurolume.agent')==='1'}catch(_){}
 let BOOKS=false;try{BOOKS=localStorage.getItem('neurolume.books')==='1'}catch(_){}
 let WEB=false;try{WEB=localStorage.getItem('neurolume.web')==='1'}catch(_){}
@@ -13,6 +14,7 @@ function setBadge(){
   if(LIVE&&active&&!SIM){b.className='badge live';b.textContent='实时 · 真实模型';$('scanSig').innerHTML='信号：<b>来自模型的实时逐层活动</b>'}
   else if(LIVE&&active){b.className='badge demo';b.textContent='演示后端 · 模拟';$('scanSig').innerHTML='信号：<b>模拟</b>'}
   else if(LIVE){b.className='badge demo';b.textContent='未加载模型';$('scanSig').innerHTML='信号：<b>等待模型</b>'}
+  else if(DEMO){b.className='badge demo';b.textContent='在线演示 · 回放真实录制';$('scanSig').innerHTML=`信号：<b>真实录制（${DEMO.model_label} · ${DEMO.machine}）</b>`}
   else{b.className='badge demo';b.textContent='演示模式 · 未连接本地服务';$('scanSig').innerHTML='信号：<b>模拟</b>'}
   SIM=!(LIVE&&active&&!SIM_BACKEND);keyText()
 }
@@ -20,6 +22,7 @@ let SIM_BACKEND=true;
 async function send(text){
   if(busy)return;
   if(LIVE&&AGENT){let ai={};try{ai=await api('/api/agent')}catch(_){}if(!ai.workspace){sysMsg('已开启 Agent，但还没有选择项目文件夹：请先点“Agent”按钮选择。');return}}
+  if(!LIVE&&DEMO&&text!==DEMO.question){sysMsg('在线演示不运行模型，只能回放一次真实录制，所以问题换成了录制时问的那一句。');text=DEMO.question}
   busy=true;$('send').disabled=true;
   addMsg('u',text);history.push({role:'user',content:text});
   const el=addMsg('a','');let out='',gotEnergy=false,st=null,srcs=null,cur=el,seg='',last=null,simResp=false;const cards={},frames=[];
@@ -39,6 +42,10 @@ async function send(text){
           if(o.neurolume&&o.neurolume.status){if(!st){st=document.createElement('div');st.className='m sys';el.after(st)}st.textContent='🌐 '+o.neurolume.status}
           if(o.neurolume&&o.neurolume.sources)srcs=(srcs||[]).concat(o.neurolume.sources);
           if(o.neurolume){if(o.neurolume.energy){gotEnergy=true;pushEnergy(o.neurolume.energy,o.neurolume.simulated)}if(o.neurolume.tps)$('scanTps').textContent=o.neurolume.tps+' tok/s'}}}
+    }else if(DEMO){ // 在线演示：按录制时的速度回放真实数据（逐层活动、逐层预测、每个字的把握）
+      const dt=1000/(DEMO.tps||20);gotEnergy=true;$('scanTps').textContent=(DEMO.tps||'')+' tok/s';
+      for(const f of DEMO.frames){out+=f.t;render(el,out);$('msgs').scrollTop=1e9;if(f.e)pushEnergy(f.e,false);
+        frames.push({t:f.t,tok:f.tok,e:f.e,lens:f.lens,p:f.p,alts:f.alts,el});tlLive(frames);await new Promise(r=>setTimeout(r,dt))}
     }else{ // 演示：不连接任何模型
       const demo="这是演示回复：页面没有连接到本地服务，所以回答和各层的活动都是模拟的。\n\n在 Mac 上运行 `uv run --extra mlx neurolume serve --model devstral-small-2` 后打开 http://127.0.0.1:8765，这里就会显示 Devstral 真实生成的文字，大脑图和网络层会用它真实的逐层活动着色。";
       const words=demo.split(/(?<=\s)/);let k=0;
@@ -50,7 +57,7 @@ async function send(text){
       (st||last||el).after(d)}
     if(st)st.textContent='🌐 已联网搜索';
     history.push({role:'assistant',content:out});
-    if(LIVE&&!simResp&&frames.length)tlFinish(frames,[...new Set(frames.map(f=>f.el))]);
+    if((LIVE||DEMO)&&!simResp&&frames.length)tlFinish(frames,[...new Set(frames.map(f=>f.el))]);
     if(LIVE&&active&&!AGENT&&!simResp&&out.trim())sampleBar(last||el,text,out);
     if(LIVE&&active&&!SIM_BACKEND&&!gotEnergy)sysMsg('提示：这次回复没有收到逐层活动信号，所以立柱和层图不会亮。请把终端窗口里最后 20 行发给开发者。');
   }catch(e){el.hidden=false;el.className='m sys';el.textContent='出错：'+e.message;history.pop()}
@@ -163,7 +170,7 @@ async function selectModel(name,adapter){
 let _wTok=0;
 async function loadWeightsFor(name){
   const tok=++_wTok;
-  try{const url=LIVE?`/api/weights?model=${encodeURIComponent(name)}`:(name==='devstral-small-2'?'weights-devstral-small-2.json':null);
+  try{const url=LIVE?`/api/weights?model=${encodeURIComponent(name)}`:(name==='devstral-small-2'?'demo/weights-devstral-small-2.json':null);
     if(!url)throw 0;const r=await fetch(url);if(!r.ok)throw 0;const j=await r.json();if(tok!==_wTok||j.layers.length!==NL)throw 0;loadWeights(j)}
   catch(e){if(!W||W.length!==NL||realWeights)synth();if(LIVE&&name&&name===active&&!SIM_BACKEND&&WSTATE!=='loading')setTimeout(()=>genWeights(name),300)}
   noteData();
@@ -190,7 +197,11 @@ async function boot(){
   try{const r=await fetch('/api/state');if(!r.ok)throw 0;const s=await r.json();if(!s.models)throw 0;LIVE=true;applyState(s);
     sysMsg(s.active?`已连接。当前模型：${s.active}`:'已连接本地服务。请在上方选择一个模型开始。')}
   catch(e){LIVE=false;$('model').innerHTML='<option value="devstral-small-2">Devstral Small 2（演示）</option><option value="qwen3.6-27b">Qwen3.6-27B（演示）</option>';$('scanModel').textContent=KNOWN['devstral-small-2'].label;setBadge();
-    sysMsg('当前是演示模式：回复和活动均为模拟。启动本地服务后会自动连接真实模型。');loadWeightsFor('devstral-small-2')}
+    try{const [s,d]=await Promise.all(['demo/session.json','demo/delta.json'].map(u=>fetch(u).then(r=>r.ok?r.json():null)));DEMO=s;DEMO_DELTA=d}catch(_){}
+    if(DEMO){setBadge();$('inp').value=DEMO.question;
+      sysMsg(`在线演示：这里没有运行模型。点“发送”会按原速回放一次真实录制：${DEMO.model_label} 在 ${DEMO.machine} 上回答这个问题时，每一层的真实活动、逐层预测和每个字的把握。“训练”视图里是一个真实训练出的适配器。在自己的 Mac 上安装后，就能用你自己的模型和数据：github.com/Yiteng-CHEN/neurolume`)}
+    else sysMsg('当前是演示模式：回复和活动均为模拟。启动本地服务后会自动连接真实模型。');
+    loadWeightsFor('devstral-small-2')}
   noteData();
 }
 

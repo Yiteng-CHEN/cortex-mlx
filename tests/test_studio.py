@@ -322,3 +322,20 @@ class ChatImportTest(unittest.TestCase):
         self.assertIn(("修一下这个 bug", "修好了：少了一个判断"), pairs)   # final answer only, tool turns skipped
         self.assertEqual(len(pairs), 4)
         self.assertTrue(any("Claude Code" in w for w in p["warnings"]))
+
+
+class DemoDataTest(unittest.TestCase):
+    def test_online_demo_recording_is_complete(self):
+        web = Path(__file__).resolve().parents[1] / "src" / "neurolume" / "web" / "demo"
+        s = json.loads((web / "session.json").read_text(encoding="utf-8"))
+        self.assertTrue(s["question"] and s["frames"])
+        n = s["layers"]
+        for f in s["frames"]:
+            self.assertEqual(len(f["e"]), n)
+            self.assertEqual(len(f["lens"]), n)
+            self.assertIsNotNone(f["p"])
+        self.assertEqual("".join(f["t"] for f in s["frames"]).strip(), s["answer"].strip())
+        d = json.loads((web / "delta.json").read_text(encoding="utf-8"))
+        self.assertTrue(d["delta"]["layers"])
+        w = json.loads((web / "weights-devstral-small-2.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(w["layers"]), n)
