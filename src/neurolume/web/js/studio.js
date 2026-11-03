@@ -105,7 +105,8 @@ function drawTlText(idx,M,k){const box=$('tlt'),F=SRC.frames;if(!M){box.innerHTM
   if(on){const bt=on.offsetTop-box.offsetTop;if(bt<box.scrollTop||bt>box.scrollTop+box.clientHeight-20)box.scrollTop=bt-box.clientHeight/2}
   else if(busy&&!selDriven)box.scrollTop=box.scrollHeight}
 function tlPick(i){if(!SRC||!SRC.frames[i])return;CUR=i;const f=SRC.frames[i];
-  if(f.e){act.fill(0);pushEnergy(f.e,false);PIN=normMatrix([i])[0]}tlRender()}
+  // 定格的层图：这个字在每一层的活动，既和“这一层在这段回答里的平常水平”比，也和“这个字在其他层”比（与 normMatrix 一致）
+  if(f.e){act.fill(0);pushEnergy(f.e,false);const idx=srcIdx(),M=normMatrix(idx),k=idx.indexOf(i);PIN=M&&k>=0?M[k]:normMatrix([i])[0];if(PIN)for(let l=0;l<PIN.length&&l<act.length;l++)act[l]=PIN[l]}tlRender()}
 function tlLive(frames){LATEST={frames};if(!selDriven){SRC={frames,a:0,b:-1};CUR=-1;PIN=null}tlRender()}
 function tlFinish(frames,bubbles){
   LATEST={frames};for(const b of bubbles){const fr=frames.map((f,i)=>[f,i]).filter(([f])=>f.el===b);let pos=0;const text=b.textContent;
@@ -250,6 +251,7 @@ function showGen(st){
 const LEARN=[
  ['你在看什么','模型由很多“层”叠起来，每生成一个字，信息都会从第一层流到最后一层。层图里每一列是一层，每一行是层里的一个矩阵；脑图里每一圈（或星云的每一段高度）也对应一层。'],
  ['亮度测的是什么','每生成一个字，测量每一层对这个字的内部表示改了多少：改动的平均大小除以输入的平均大小。这是真实测量值，不代表“重要性”。为了看得出变化，亮度把层与层之间的差别放大了；鼠标停在层图上可以看到这一层的原始测量值。'],
+ ['连线和格子为什么有亮有暗','在回答回放里点一个字，层图会定格在生成这个字的那一刻。每一层的亮度 = 这一层在这个字上把内部表示改了多少，同时和两样东西比较：这一层在这段回答里的平常水平，以及这个字在其他层的改动。相邻两层之间那一束线的亮度 = 两层亮度的几何平均，所以只有两层都很活跃时线才会粗、亮；只要有一层安静，这束线就是淡的。格子的颜色 = 这一层的亮度 × 这个位置权重的大小，所以同一层里图案是固定的，只是整体变亮或变暗。注意：一束线里 16 条细线具体连在哪两个矩阵之间、亮点怎么跑，是为了好看画的，不是测量值；真实测量只到“每一层”这一级。'],
  ['注意力（Q、输出）','让当前的字去“看”前面的字：Q 决定要找什么信息，输出矩阵把找到的信息写回来。全注意力层每一步都能看到前面所有字。'],
  ['线性注意力层','Qwen3.6 里四层中有三层是线性注意力（DeltaNet）：不再逐个回看前面的字，而是维护一份不断更新的“记忆”，长文本时更快。层号旁边的 ◆ 表示全注意力层。'],
  ['MLP（门控、下投影）','对每个字单独做的计算，很多“知识”存放在这里：门控决定打开哪些通道，下投影把结果写回去。'],
