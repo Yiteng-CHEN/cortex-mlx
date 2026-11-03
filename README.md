@@ -18,7 +18,7 @@ English · [简体中文](README.zh-CN.md)
 
 Most fine-tuning tools stop at "training finished, loss = 1.23". Most interpretability tools show a model you cannot change. Neurolume puts both in one local app: **you train the model, and you watch its insides while you do it.**
 
-> **Status: early alpha.** Server, UI and tooling are unit-tested (100+ tests, no GPU needed). Model loading and LoRA training were benchmarked on one machine (MacBook Pro M5 Max, 128 GB). Several MLX-side features — the live layer probe, logit lens, before/after switching and export — are written against the current mlx-lm API but have **not had a full hardware run yet**. Reports welcome.
+> **Status: early alpha.** Server, UI and tooling are unit-tested (100+ tests, no GPU needed). Model loading and LoRA training were benchmarked on one machine (MacBook Pro M5 Max, 128 GB). Verified on that Mac with Devstral Small 2: live layer probe, logit lens (all layers), guided LoRA training (36 steps, 15 GB peak), before/after comparison, MLX export and training-data generation. Ollama export is not hardware-tested yet. Reports from other machines are very welcome.
 
 ## What you can do
 

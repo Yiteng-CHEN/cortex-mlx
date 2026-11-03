@@ -172,7 +172,8 @@ def parse_line(line: str) -> dict | None:
         k = {"": 1, "k": 1e3, "M": 1e6}[m.group(5)]
         return {"iter": int(m.group(1)), "loss": float(m.group(2)), "tok_s": float(m.group(3)),
                 "tokens": float(m.group(4)) * k}
-    v = re.search(r"[Vv]al(?:idation)? loss\s*[:=]?\s*([\d.]+)", line)
+    v = (re.search(r"[Vv]al(?:idation)? loss\s*[:=]?\s*([\d.]+)", line)
+         or re.match(r"\s*\d+\s+val\s+([\d.]+)", line))          # mlx-lm's table UI: "   10    val 1.487    0.23s"
     if v:
         return {"val_loss": float(v.group(1))}
     o = re.search(r"Iter (\d+): Train loss ([\d.]+).*?Tokens/sec ([\d.]+)", line)

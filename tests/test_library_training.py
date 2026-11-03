@@ -187,6 +187,8 @@ class TrainerTests(unittest.TestCase):
         r = parse_line("       10  1.234  ▼  45  1.2k")
         self.assertEqual((r["iter"], r["loss"], r["tok_s"], r["tokens"]), (10, 1.234, 45.0, 1200.0))
         self.assertEqual(parse_line("Val loss 0.987")["val_loss"], 0.987)
+        self.assertEqual(parse_line("    10    val 1.487    0.23s")["val_loss"], 1.487)   # seen on real hardware
+        self.assertEqual(parse_line("    10    1.284 ▲      159      0.4k")["iter"], 10)
         self.assertIsNone(parse_line("Loading model..."))
 
     def test_plan_iters(self):
