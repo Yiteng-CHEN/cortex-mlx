@@ -10,11 +10,11 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 28px}
 button,select,textarea{font:inherit;color:var(--fg)}
-button,select{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer}
+button,select{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:5px 12px;cursor:pointer;font-size:13px}
 button:disabled{opacity:.45;cursor:default}
 button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.app{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(380px,1fr);gap:12px;height:calc(100vh - 42px);min-height:620px}
+.app{display:grid;grid-template-columns:minmax(0,1fr) clamp(400px,38vw,680px);gap:12px;height:calc(100vh - 42px);min-height:620px}
 .mon{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .mon .scan{flex:none;height:clamp(300px,44vh,520px)}
 .mon .net{flex:none}
@@ -48,8 +48,6 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 .chead .lhs{flex:1 1 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
 .chead .lhs select{height:32px;margin:0;min-width:150px;max-width:100%;flex:0 1 auto}
 .chead .lhs .badge{white-space:nowrap;flex:none;display:inline-flex;align-items:center;line-height:1;min-height:22px}
-.chead .tools{flex:none;display:grid;grid-template-columns:repeat(4,auto);gap:8px;justify-content:end;margin-left:auto}
-.chead .tools #clear{grid-column:4;grid-row:2}
 .badge{font:11px var(--mono);padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
 .badge.live{color:#58dc58;border-color:#58dc58}
 .badge.demo{color:var(--warn);border-color:var(--warn)}
@@ -123,8 +121,6 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
 .learn h4{margin:10px 0 2px;font:500 14px var(--display)}
 .learn p{margin:0;color:var(--mute);font-size:13px;line-height:1.55}
 .nw[hidden],.lensv[hidden],#step[hidden]{display:none}
-/* 窄窗口（如浏览器侧栏）：模型选择和按钮分成两行，避免互相遮挡 */
-@media (max-width:1100px){.chead{flex-wrap:wrap}.chead .lhs{flex:1 1 100%}.chead .tools{width:100%;grid-template-columns:repeat(4,1fr);margin-left:0}}
 
 /* ---- 回答时间轴 + 逐层预测表 ---- */
 .tl{padding:8px 12px 12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
@@ -150,5 +146,33 @@ pre.pv{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;overflow-wrap:any
 .lensctl select{height:28px;margin:0;width:auto;min-width:0}
 .lensctl .seg button{padding:3px 9px}
 .lensctl .seg button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
-/* 右侧聊天栏较窄：模型选择一行、功能按钮一行 */
-.app>.chat .chead{flex-wrap:wrap}.app>.chat .chead .lhs{flex:1 1 100%}.app>.chat .chead .tools{width:100%;grid-template-columns:repeat(4,1fr);margin-left:0}
+
+/* ---- 聊天栏头部：第一行选模型，第二行是一排紧凑的工具按钮 ---- */
+.app>.chat .chead{flex-direction:column;align-items:stretch;gap:9px;padding:11px 14px 10px}
+.chead .lhs{gap:8px 10px}
+.chead .lhs select{height:30px;min-width:170px;font-size:13px;padding:0 10px}
+.chead .lhs>button{height:28px;padding:0 10px;font-size:12px}
+.chead .tools{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.chead .tools button{height:28px;padding:0 9px;font-size:12px;line-height:1;background:transparent;color:var(--mute);white-space:nowrap;transition:color .12s,border-color .12s,background .12s}
+.chead .tools button:hover{color:var(--fg);border-color:color-mix(in srgb,var(--fg) 35%,var(--line));background:var(--inset)}
+.chead .tools button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chead .tools .tseg{display:inline-flex}
+.chead .tools .tseg button:first-child{border-radius:7px 0 0 7px}
+.chead .tools .tseg button:last-child{border-radius:0 7px 7px 0;border-left:0;padding:0 8px}
+.chead .tools .tseg svg{width:14px;height:14px;display:block}
+.chead .tools #clear{margin-left:auto;padding:0 8px}.chead .tools #clear svg{width:15px;height:15px;display:block}
+
+/* ---- 神经网络层头部：标题一行，控件一行 ---- */
+.nh{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:0 12px 10px}
+.nh .nh-top,.nh .nh-bar{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.nh .nh-top .ttl{flex:1 1 auto;min-width:0}
+.net button,.net select{font-size:12px}
+.nh button{height:27px;padding:0 10px;line-height:1}
+.nh .seg button{height:25px;padding:0 11px}
+.nh #dataNote{margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;text-align:right}
+.tlh button{height:27px;padding:0 10px}
+.chat textarea{font-size:14px}
+#send{height:44px;padding:0 18px}
+/* 聊天栏较窄时：去掉“模型”标签、让下拉框收窄 */
+.app>.chat{container-type:inline-size}
+@container (max-width:470px){.chead .lhs>label.badge{display:none}.chead .lhs select{min-width:0;flex:0 1 160px}}

@@ -8,7 +8,7 @@ const EN=[
 ["高","High"],["低","Low"],
 ["聊天","Chat"],["选择模型","Choose model"],["适配器","Adapter"],["模型库","Models"],["模型","Model"],["训练","Train"],
 ["打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）","When on, the model can search the web and read pages by itself (your question is sent to the search service)"],
-["联网搜索：开","Web search: on"],["联网搜索","Web search"],["搜索设置","Search settings"],
+["联网搜索：开","Web search: on"],["联网搜索","Web search"],["搜索设置","Search settings"],["清空当前对话","Clear this conversation"],
 ["导入书和文档，对话时模型会先从里面查资料再回答","Import books and documents; the model looks things up in them before answering"],
 ["知识库：开","Knowledge base: on"],["知识库","Knowledge base"],
 ["清空对话","Clear chat"],

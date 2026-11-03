@@ -18,17 +18,21 @@
   </div>
 <div class="net">
   <div class="nh">
-    <span><b>神经网络层</b> · <span id="nlayers">40</span> 层，层与层之间的连线随活动发光</span>
-    <span class="seg" id="modes" role="group" aria-label="显示模式">
-      <button data-m="infer" aria-pressed="true">推理</button>
-      <button data-m="train" aria-pressed="false">训练</button>
-      <button data-m="weights" aria-pressed="false">权重</button>
-      <button data-m="lens" aria-pressed="false" title="每生成一个字，看看每一层“如果在这里停下”会预测什么（logit lens，需要真实模型）">逐层预测</button>
-    </span>
-    <button id="btnSig" type="button" title="增强：放大层与层之间的差别，便于观察；原始：直接按测量值的比例显示">显示：增强</button>
-    <button id="btnLearn" type="button">这张图怎么看？</button>
-    <button id="step" type="button" title="打开训练向导，用你的数据真正训练一次">去训练…</button>
-    <span id="dataNote"></span>
+    <div class="nh-top">
+      <span class="ttl"><b>神经网络层</b> · <span id="nlayers">40</span> 层，层与层之间的连线随活动发光</span>
+      <button id="btnLearn" type="button">这张图怎么看？</button>
+    </div>
+    <div class="nh-bar">
+      <span class="seg" id="modes" role="group" aria-label="显示模式">
+        <button data-m="infer" aria-pressed="true">推理</button>
+        <button data-m="train" aria-pressed="false">训练</button>
+        <button data-m="weights" aria-pressed="false">权重</button>
+        <button data-m="lens" aria-pressed="false" title="每生成一个字，看看每一层“如果在这里停下”会预测什么（logit lens，需要真实模型）">逐层预测</button>
+      </span>
+      <button id="btnSig" type="button" title="增强：放大层与层之间的差别，便于观察；原始：直接按测量值的比例显示">显示：增强</button>
+      <button id="step" type="button" title="打开训练向导，用你的数据真正训练一次">去训练…</button>
+      <span id="dataNote"></span>
+    </div>
   </div>
   <div class="nw" id="nwrap"><div class="gut" id="gut"></div><div class="scroller" id="scroller"><canvas id="net"></canvas></div></div>
   <div class="lensv" id="lensv" hidden></div>
@@ -59,12 +63,11 @@
       <div class="tools">
         <button id="btnLib" type="button">模型库</button>
         <button id="btnTrain" type="button">训练</button>
-        <button id="btnWeb" type="button" aria-pressed="false" title="打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）">联网搜索</button>
-        <button id="btnWebSet" type="button">搜索设置</button>
+        <span class="tseg"><button id="btnWeb" type="button" aria-pressed="false" title="打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）">联网搜索</button><button id="btnWebSet" type="button" title="搜索设置" aria-label="搜索设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></span>
         <button id="btnBooks" type="button" title="导入书和文档，对话时模型会先从里面查资料再回答">知识库</button>
         <button id="btnLang" data-notr type="button">English</button>
         <button id="btnAgent" type="button" title="让模型读取你选的项目文件夹并提出修改（每次修改都要你批准）">Agent</button>
-        <button id="clear" type="button">清空对话</button>
+        <button id="clear" type="button" title="清空对话" aria-label="清空对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button>
       </div>
     </div>
     <div id="msgs" aria-live="polite"></div>
