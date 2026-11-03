@@ -58,6 +58,10 @@ const EN=[
 ["（真实，来自适配器）"," (real, from the adapter)"],["需要先加载一个真实模型","Load a real model first"],
 
 // ---- 回答时间轴 / 逐层预测 / 训练回看
+["到最后一层都没定下来","not settled even at the last layer"],["（1 = 这段回答里的平常水平）"," (1 = typical level in this answer)"],["最忙：","busiest: "],["点柱子或下面的字回看","click a bar or a word below to revisit"],
+["柱子越高 = 越靠后的层才想好这个字","Taller bar = settled only in a later layer"],["很有把握","confident"],["一般","so-so"],["没把握","unsure"],
+["柱子越高 = 这个字让模型越费劲","Taller bar = the model worked harder on this token"],["（虚线 = 这段回答的平常水平）"," (dashed line = typical level for this answer)"],["（字形、语法）"," (form, grammar)"],["（意思、联想）"," (meaning, associations)"],["（决定下一个字）"," (picking the next token)"],
+["在对话里选中一段 AI 回答，就只看那一段","Select part of an AI answer in the chat to see only that part"],["回答里每个字一根柱子：柱子越高，模型在这个字上越费劲；点击或拖动回看","One bar per token of the answer: taller = the model worked harder on it; click or drag to revisit"],
 ["选中的内容","Selection"],["最近一次回答","Latest answer"],["正在生成","Generating"],[" · 拖动或点击热力图回看任意一个字"," · drag or click the heatmap to revisit any token"],
 ["逐层预测显示","Logit lens shows"],["逐层预测显示哪些层","Which layers the logit lens shows"],["全部层","all layers"],["每 2 层","every 2nd layer"],["每 4 层","every 4th layer"],
 ["取消选中，回到最近一次回答的全部内容","Clear the selection and show the whole latest answer"],["看最近一次回答","Latest answer"],
@@ -235,7 +239,7 @@ const EN=[
 // ---- 标点（最后统一处理）
 ];
 const EN_RX=[
-[/(\d+) 个字/g,"$1 tokens"],[/第 (\d+) 个：「/g,"token $1: “"],[/」/g,"”"],[/从第 (\d+) 层起就定下来了/g,"settled from layer $1 on"],
+[/第 (\d+) 个字：「/g,"token $1: “"],[/第 (\d+) 层定下来/g,"settled at layer $1"],[/把握 (\d+)%/g,"confidence $1%"],[/（纵轴 L(\d+)–L(\d+)）/g," (axis L$1–L$2)"],[/忙碌程度 ([\d.]+) 倍/g,"effort $1×"],[/(\d+) 个字/g,"$1 tokens"],[/第 (\d+) 个：「/g,"token $1: “"],[/」/g,"”"],[/从第 (\d+) 层起就定下来了/g,"settled from layer $1 on"],
 [/第 (\d+)\/(\d+) 段/g,"piece $1/$2"],[/已处理 (\d+)\/(\d+) 段，得到 (\d+) 条/g,"Processed $1/$2 pieces, $3 items so far"],[/共 (\d+) 条。/g,"$1 items. "],[/保留第 (\d+) 条/g,"Keep item $1"],
 [/《([^》]*)》第 (\d+) 段/g,"“$1” passage $2"],[/（当前启用 (\d+) 段）/g,(m,n)=>" ("+n+" passage"+(n==1?"":"s")+" enabled)"],[/(\d+) 段/g,(m,n)=>n+" passage"+(n==1?"":"s")],[/([\d.]+) 万字/g,(m,n)=>Math.round(n*10)/10+"×10k chars"],[/^(\d) 训练$/,"$1 Train"],[/^(\d) 完成$/,"$1 Done"],[/(\d+) 时 /g,"$1 h "],[/(\d+) 分钟/g,"$1 min"],[/(\d+) 分(?!钟)/g,"$1 min"],
 [/已读取 (\d+) 个网页，正在整理回答/g,"Read $1 pages, preparing the answer"],

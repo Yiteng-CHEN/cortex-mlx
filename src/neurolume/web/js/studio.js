@@ -34,18 +34,70 @@ function syncLensCtl(n){const fs=$('lensFrom'),ts=$('lensTo');if(fs.options.leng
   const f=clamp(LENS.from||0,0,n-1),t=LENS.to==null?n-1:clamp(LENS.to,f,n-1);fs.value=f;ts.value=t;
   document.querySelectorAll('#lensPre button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.p==='all'&&f===0&&t===n-1)||(b.dataset.p==='half'&&f===Math.floor(n/2)&&t===n-1)||(b.dataset.p==='last16'&&f===Math.max(0,n-16)&&t===n-1))));return[f,t]}
 function tlRender(){cancelAnimationFrame(tlRaf);tlRaf=requestAnimationFrame(()=>{if(tlShow())drawTimeline();if(mode==='lens')drawLens()})}
+// ---- 回答回放：每个字一根柱子 + 原文着色（替代原来 40 行的热力图，那张图字一多就只剩噪点）
+// 推理视图：柱高 = 这个字让模型比这段回答里的平常水平“多忙了多少”（每层先除以该层在这段回答里的中位数，再平均）；
+//           颜色 = 最忙的是哪一段层（青 = 浅层，绿 = 中层，橙 = 深层）
+// 逐层预测视图：柱高 = 第几层才定下来（越高 = 越晚才想好），颜色 = 最后一层的把握（青 = 很有把握，黄 = 一般，橙红 = 没把握）
+const BANDC=[[76,195,217],[132,206,98],[242,152,58]],BANDN=new Proxy([],{get:(_,i)=>(LANG==='en'?['shallow layers','middle layers','deep layers']:['浅层','中层','深层'])[i]});
+const pct=(a,q)=>{const s=a.filter(x=>x!=null&&isFinite(x)).sort((x,y)=>x-y);return s.length?s[Math.min(s.length-1,Math.max(0,Math.round(q*(s.length-1))))]:0};
+const confC=p=>{const A=[232,96,70],B=[232,194,106],C=[76,195,217];return p<.55?mix3(A,B,clamp((p-.2)/.35,0,1)):mix3(B,C,clamp((p-.55)/.35,0,1))};
+const mix3=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const rgb=(c,a)=>a==null?`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`:`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+function lensView(idx){return mode==='lens'&&idx.some(i=>SRC.frames[i].lens)}
+function tlMetrics(idx){
+  const F=SRC.frames;
+  if(lensView(idx)){const L=Math.max(2,lensLayerCount());
+    // 大多数字都在后三分之一的层才定下来：纵轴只画实际出现的范围（左侧标出层号），差别才看得出来
+    const lks=idx.map(i=>SRC.frames[i].lens?lockLayer(SRC.frames[i]):null),lo=Math.max(0,Math.min(L-4,Math.floor(pct(lks.map(x=>x==null?L-1:x),.03))-2));
+    return {kind:'lens',L,lo,rows:idx.map((i,j)=>{const f=F[i];if(!f.lens||!f.lens.length)return null;const lk=lks[j];
+      const top=f.lens.reduce((a,r)=>r[0]>a[0]?r:a),p=top[2],v=lk==null?1:Math.max(.04,(lk-lo)/(L-1-lo));
+      return {v,c:confC(p),lk,p}})}}
+  const E=idx.map(i=>F[i].e);const f0=E.find(Boolean);if(!f0)return null;const n=f0.length;
+  const b1=Math.round(n/3),b2=Math.round(2*n/3),band=l=>l<b1?0:l<b2?1:2;
+  const med=[...Array(n)].map((_,l)=>Math.max(1e-9,pct(E.map(r=>r&&r[l]),.5)));
+  const gmax=Math.max(1e-9,...E.filter(Boolean).flat());
+  const raw=E.map(r=>{if(!r)return null;const s=[0,0,0],k=[0,0,0];
+    for(let l=0;l<n;l++){const b=band(l);s[b]+=SIGRAW?r[l]/gmax:r[l]/med[l];k[b]++}
+    const bm=s.map((v,i)=>v/Math.max(1,k[i])),eff=(s[0]+s[1]+s[2])/n,dom=bm.indexOf(Math.max(...bm));return {eff,bm,dom}});
+  const effs=raw.map(r=>r&&r.eff),lo=SIGRAW?0:pct(effs,.05),hi=Math.max(lo+1e-9,SIGRAW?Math.max(...effs.filter(x=>x!=null)):pct(effs,.97));
+  return {kind:'infer',base:SIGRAW?null:Math.sqrt(clamp((1-lo)/(hi-lo),0,1)),bands:[[0,b1-1],[b1,b2-1],[b2,n-1]],
+    rows:raw.map(r=>r&&{v:Math.max(.04,Math.sqrt(clamp((r.eff-lo)/(hi-lo),0,1))),c:BANDC[r.dom],dom:r.dom,eff:r.eff})}}
+let TLM=null;
 function drawTimeline(){
-  const c=$('tlc'),d=Math.min(devicePixelRatio||1,2),w=c.clientWidth,idx=srcIdx(),n=idx.length,M=normMatrix(idx);
-  const L=(SRC.frames.find(f=>f.e)||{e:[]}).e.length||NL,h=Math.max(70,Math.min(150,L*2.2));
+  const c=$('tlc'),d=Math.min(devicePixelRatio||1,2),w=c.clientWidth,idx=srcIdx(),n=idx.length,h=84;
   c.width=w*d;c.height=h*d;c.style.height=h+'px';const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);
-  if(!n)return;const cw=w/n,rh=h/L;
-  if(M)for(let j=0;j<n;j++){const r=M[j];if(!r)continue;for(let l=0;l<L;l++){const col=heat(r[l]);g.fillStyle=`rgb(${col[0]|0},${col[1]|0},${col[2]|0})`;g.fillRect(j*cw,l*rh,Math.ceil(cw),Math.ceil(rh))}}
+  const M=n?tlMetrics(idx):null;TLM={M,idx};
+  const top=6,bot=h-4,H=bot-top,cw=n?w/n:0,gap=cw>=5?1:0;
+  g.strokeStyle=isDark?'rgba(255,255,255,.07)':'rgba(0,0,0,.07)';g.lineWidth=1;
+  for(const q of [.25,.5,.75]){const y=Math.round(bot-H*q)+.5;g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke()}
+  if(M){const R=M.rows;
+    for(let j=0;j<n;j++){const r=R[j];if(!r)continue;const bh=Math.max(2,r.v*H),x=j*cw;
+      g.fillStyle=rgb(r.c,j===(CUR>=0?idx.indexOf(CUR):-2)?1:.82);g.fillRect(x,bot-bh,Math.max(1,cw-gap),bh)}
+    // 字很多时加一条平滑趋势线，看清整体起伏
+    if(n>40){const k=Math.max(2,Math.round(n/40)),pts=[];for(let j=0;j<n;j++){let s=0,m=0;for(let t=Math.max(0,j-k);t<=Math.min(n-1,j+k);t++)if(R[t]){s+=R[t].v;m++}pts.push(m?s/m:0)}
+      g.strokeStyle=isDark?'rgba(255,255,255,.85)':'rgba(20,24,34,.8)';g.lineWidth=1.5;g.beginPath();pts.forEach((v,j)=>{const x=(j+.5)*cw,y=bot-v*H;j?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()}
+    if(M.kind==='lens'){g.font='10px '+getComputedStyle(document.body).getPropertyValue('--mono');g.fillStyle=isDark?'rgba(255,255,255,.75)':'rgba(0,0,0,.65)';g.textBaseline='top';g.fillText('L'+(M.L-1),3,1);g.textBaseline='bottom';g.fillText('L'+M.lo,3,h-1)}
+    if(M.kind==='infer'&&M.base!=null){const y=Math.round(bot-M.base*H)+.5;g.setLineDash([4,4]);g.strokeStyle=isDark?'rgba(255,255,255,.35)':'rgba(0,0,0,.35)';g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();g.setLineDash([])}}
   const k=CUR>=0?idx.indexOf(CUR):-1;
-  if(k>=0){g.strokeStyle=isDark?'#fff':'#000';g.lineWidth=2;g.strokeRect(k*cw+1,1,Math.max(2,cw-2),h-2)}
-  $('tlr').max=n-1;$('tlr').value=k>=0?k:n-1;
-  const f=SRC.frames[k>=0?CUR:idx[n-1]],lk=f&&lockLayer(f);
-  $('tlLab').textContent=(selDriven?'选中的内容':(busy?'正在生成':'最近一次回答'))+` · ${n} 个字`+(k>=0?` · 第 ${k+1} 个：「${dispOut(f)}」`+(lk!=null?` · 从第 ${lk} 层起就定下来了`:''):' · 拖动或点击热力图回看任意一个字');
-}
+  if(k>=0){g.strokeStyle=isDark?'#fff':'#000';g.lineWidth=1.5;const x=Math.round((k+.5)*cw)+.5;g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke()}
+  $('tlr').max=Math.max(0,n-1);$('tlr').value=k>=0?k:Math.max(0,n-1);
+  const f=SRC.frames[k>=0?CUR:idx[n-1]],lk=f&&lockLayer(f),r=k>=0&&M?M.rows[k]:null;
+  let info='';if(k>=0){info=` · 第 ${k+1} 个：「${dispOut(f)}」`;
+    if(r&&M.kind==='lens')info+=lk!=null?` · 第 ${lk} 层定下来 · 把握 ${Math.round(r.p*100)}%`:` · 到最后一层都没定下来 · 把握 ${Math.round(r.p*100)}%`;
+    else if(r)info+=` · 忙碌程度 ${r.eff.toFixed(2)} 倍 · 最忙：${BANDN[r.dom]}`}
+  $('tlLab').textContent=(selDriven?'选中的内容':(busy?'正在生成':'最近一次回答'))+` · ${n} 个字`+(k>=0?info:' · 点柱子或下面的字回看');
+  $('tlKey').innerHTML=!M?'':M.kind==='lens'
+    ?`<span>柱子越高 = 越靠后的层才想好这个字（纵轴 L${M.lo}–L${M.L-1}）</span><span><i class="sw" style="background:${rgb(confC(.95))}"></i>很有把握</span><span><i class="sw" style="background:${rgb(confC(.6))}"></i>一般</span><span><i class="sw" style="background:${rgb(confC(.25))}"></i>没把握</span>`
+    :`<span>柱子越高 = 这个字让模型越费劲${M.base!=null?'（虚线 = 这段回答的平常水平）':''}</span>${BANDC.map((col,i)=>`<span><i class="sw" style="background:${rgb(col)}"></i>${BANDN[i]} L${M.bands[i][0]}–${M.bands[i][1]}${['（字形、语法）','（意思、联想）','（决定下一个字）'][i]}</span>`).join('')}`;
+  drawTlText(idx,M,k)}
+// 原文着色：和柱子同一套颜色，深浅 = 柱高；点任意一个字回看
+function drawTlText(idx,M,k){const box=$('tlt'),F=SRC.frames;if(!M){box.innerHTML='';return}
+  let html='';for(let j=0;j<idx.length;j++){const f=F[idx[j]],t=f.t;if(!t)continue;const r=M.rows[j];
+    const bg=r?rgb(r.c,(isDark?.12:.1)+r.v*(isDark?.62:.5)):'transparent',low=M.kind==='lens'&&r&&r.p<.5;
+    html+=`<span data-k="${j}" class="${j===k?'on':''}${low?' low':''}" style="background:${bg}">${escH(t)}</span>`}
+  box.innerHTML=html;const on=box.querySelector('.on');
+  if(on){const bt=on.offsetTop-box.offsetTop;if(bt<box.scrollTop||bt>box.scrollTop+box.clientHeight-20)box.scrollTop=bt-box.clientHeight/2}
+  else if(busy&&!selDriven)box.scrollTop=box.scrollHeight}
 function tlPick(i){if(!SRC||!SRC.frames[i])return;CUR=i;const f=SRC.frames[i];
   if(f.e){act.fill(0);pushEnergy(f.e,false);PIN=normMatrix([i])[0]}tlRender()}
 function tlLive(frames){LATEST={frames};if(!selDriven){SRC={frames,a:0,b:-1};CUR=-1;PIN=null}tlRender()}
@@ -64,6 +116,11 @@ let _selT=0;document.addEventListener('selectionchange',()=>{clearTimeout(_selT)
 // 交互：点击/拖动热力图、滑块、回放
 (()=>{const c=$('tlc');let down=false;const at=e=>{const idx=srcIdx();if(!idx.length)return;const r=c.getBoundingClientRect();tlPick(idx[clamp(Math.floor((e.clientX-r.left)/r.width*idx.length),0,idx.length-1)])};
   c.addEventListener('pointerdown',e=>{down=true;c.setPointerCapture(e.pointerId);at(e)});c.addEventListener('pointermove',e=>{if(down)at(e)});c.addEventListener('pointerup',()=>down=false);
+  $('tlt').addEventListener('click',e=>{const sp=e.target.closest('span[data-k]');if(!sp)return;clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';tlPick(srcIdx()[+sp.dataset.k])});
+  const tip=$('tip');c.addEventListener('pointerleave',()=>tip.hidden=true);
+  c.addEventListener('mousemove',e=>{if(!TLM||!TLM.M||!TLM.idx.length){tip.hidden=true;return}const r=c.getBoundingClientRect(),j=clamp(Math.floor((e.clientX-r.left)/r.width*TLM.idx.length),0,TLM.idx.length-1),f=SRC.frames[TLM.idx[j]],m=TLM.M.rows[j];if(!f||!m){tip.hidden=true;return}
+    tip.innerHTML=`<b>第 ${j+1} 个字：「${escH(dispOut(f))}」</b><br>`+(TLM.M.kind==='lens'?(m.lk!=null?`第 ${m.lk} 层定下来`:'到最后一层都没定下来')+` · 把握 ${Math.round(m.p*100)}%`:`忙碌程度 ${m.eff.toFixed(2)} 倍 · 最忙：${BANDN[m.dom]}`);
+    tip.hidden=false;tip.style.left=Math.min(innerWidth-320,e.clientX+14)+'px';tip.style.top=(e.clientY+16)+'px'});
   $('tlr').oninput=()=>{clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';const idx=srcIdx();tlPick(idx[+$('tlr').value])};
   $('tlPlay').onclick=()=>{if(tlTimer){clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';return}const idx=srcIdx();if(!idx.length)return;
     let k=CUR>=0?idx.indexOf(CUR):idx.length-1;if(k>=idx.length-1)k=-1;$('tlPlay').textContent='❚❚ 暂停';
@@ -81,7 +138,7 @@ let _selT=0;document.addEventListener('selectionchange',()=>{clearTimeout(_selT)
 function drawLens(){
   const v=$('lensv'),idx=SRC?srcIdx().filter(i=>SRC.frames[i].lens):[];
   if(!idx.length){v.innerHTML=`<div class="empty">${!LIVE||SIM?'逐层预测需要连接真实模型。':'打开这个视图后再提问，就能看到每一层在“猜”下一个字。'}</div>`;return}
-  const W=Math.max(4,Math.floor((v.clientWidth-60)/76));let k=CUR>=0?idx.indexOf(CUR):idx.length-1;if(k<0)k=idx.length-1;
+  const W=Math.max(4,Math.floor((v.clientWidth-56)/64));let k=CUR>=0?idx.indexOf(CUR):idx.length-1;if(k<0)k=idx.length-1;
   const st=clamp(k-Math.floor(W*.6),0,Math.max(0,idx.length-W)),cols=idx.slice(st,st+W),F=SRC.frames;
   const all=[...new Set(cols.flatMap(i=>F[i].lens.map(r=>r[0])))].sort((a,b)=>a-b),last=all[all.length-1];
   const [lf,lt]=syncLensCtl(last+1),stp=LENS.step||1;

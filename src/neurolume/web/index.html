@@ -43,9 +43,11 @@
         <span class="hint">从</span><select id="lensFrom" aria-label="从第几层开始显示"></select><span class="hint">到</span><select id="lensTo" aria-label="显示到第几层"></select>
         <select id="lensStep" aria-label="每隔几层显示一层"><option value="1">每一层都显示</option><option value="2">隔一层显示一层</option><option value="4">每 4 层显示一层</option></select></span>
       <button id="tlPlay" type="button">▶ 回放</button><button id="tlLatest" type="button" title="取消选中，回到最近一次回答的全部内容">看最近一次回答</button></div>
-    <canvas id="tlc" aria-label="整段回答的逐字逐层活动热力图：横向是每个字，纵向是每一层；点击或拖动回看"></canvas>
+    <canvas id="tlc" aria-label="回答里每个字一根柱子：柱子越高，模型在这个字上越费劲；点击或拖动回看"></canvas>
     <input type="range" id="tlr" min="0" max="0" value="0" aria-label="选择第几个字">
-    <div class="hint tlk">横向：回答里的每个字 · 纵向：第 0 层（上）到最后一层（下） · 在对话里选中一段 AI 回答，就只看那一段</div>
+    <div class="tlkey" id="tlKey"></div>
+    <div class="tlt" id="tlt" data-notr></div>
+    <div class="hint tlk">在对话里选中一段 AI 回答，就只看那一段</div>
   </div>
   <div class="trainbars" id="trainbars" hidden><div class="hint" id="trainbarsLab"></div><div class="lbars" id="trainbarsBars"></div></div>
   <div class="key" id="key"></div>
