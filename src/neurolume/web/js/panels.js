@@ -67,10 +67,14 @@ async function renderWiz(st){
   const body=$('mbody');if(!body)return;
   if(wiz.step===1){
     let ds=[];try{ds=(await api('/api/train/datasets')).datasets}catch(e){}
-    body.innerHTML=stepsBar()+`<p class="hint">训练让 AI 学会你的写法和做事套路（例如你的代码风格、常用做法）。想让它记住书本里的知识，放进知识库更合适——这个功能稍后加入。</p>
+    let sm={n:0,items:[]};try{sm=await api('/api/samples')}catch(e){}
+    body.innerHTML=stepsBar()+`<p class="hint">训练让 AI 学会你的写法和做事套路（例如回答的格式、语气、常用做法）。想让它记住文档里的知识，用“知识库”更合适。</p>
+     <div class="card"><div class="row"><span class="nm">聊天里收藏的样本</span><span class="pill ${sm.n?'ok':''}">${sm.n} 条</span><span class="sp"></span>${sm.n?`<button id="smShow">查看 / 删除</button><button class="btn1" id="smUse">用这些创建数据集</button>`:''}</div>
+       <div class="rp">${sm.n?'在聊天里点回答下方的“存为训练样本”就会加到这里。建议至少 20 条，越多越好。':'还没有。聊天时点回答下方的“存为训练样本”（或“改一改再存…”），攒到二三十条就可以拿来训练。'}</div><div id="smList"></div></div>
      <div class="drop" id="drop" tabindex="0" role="button">把文件拖到这里，或点击选择<br><small>支持 .jsonl（对话/问答）、.md、.txt 和代码文件；含密钥的样本会被自动剔除</small></div>
+     <details class="hint"><summary>导入 ChatGPT / Claude / Claude Code 的聊天记录</summary>直接把下面的文件拖进来，会自动整理成“问题 → 回答”：<br>• ChatGPT：设置 → 数据控制 → 导出数据，邮件里的压缩包解开后选 <code>conversations.json</code><br>• Claude 网页版：设置 → 隐私 → 导出数据，同样选 <code>conversations.json</code><br>• Claude Code：<code>~/.claude/projects/</code> 里各个项目文件夹下的 <code>.jsonl</code> 文件（在选择文件的窗口里按 ⌘⇧. 显示隐藏文件夹）<br>聊天记录里常有不想让模型学的内容，导入后先看预览，必要时先删掉不要的对话再导入。</details>
      <input type="file" id="fin" multiple hidden>
-     <div id="flist" class="hint"></div><div class="row"><button class="btn1" id="fgo" disabled>导入并检查</button></div><div class="err" id="ferr"></div><div id="fres"></div>
+     <div id="flist" class="hint"></div><div class="row"><button class="btn1" id="fgo" disabled>导入并检查</button>${sm.n?`<label class="hint"><input type="checkbox" id="fsm" checked> 同时加上聊天里收藏的 ${sm.n} 条样本</label>`:''}</div><div class="err" id="ferr"></div><div id="fres"></div>
      <div class="card"><div class="nm">没有现成的训练数据？</div><div class="rp">选几份你自己的资料（文档、笔记、代码），让当前加载的模型帮你生成问答对，你检查修改后再拿去训练。</div><div class="row"><button id="genOpen">用我的资料生成训练数据…</button></div></div>
      ${ds.length?`<div class="lab hint">或者使用已导入的数据</div>`+ds.map(d=>`<div class="card"><div class="row"><span class="nm">${d.name}</span><span class="pill">${d.n_train} 条训练 / ${d.n_valid} 条验证</span><span class="sp"></span><button data-use="${d.id}">用这份</button></div></div>`).join(''):''}`;
     const drop=$('drop'),fin=$('fin');
@@ -80,9 +84,11 @@ async function renderWiz(st){
     drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');setFiles(e.dataTransfer.files)};
     $('fgo').onclick=async()=>{$('ferr').textContent='';$('fgo').disabled=true;
       try{const files=await Promise.all(wiz.files.map(async f=>({name:f.name,text:await f.text()})));
-        const meta=await api('/api/train/dataset',{name:wiz.files[0].name.replace(/\.[^.]+$/,''),files});showMeta(meta)}catch(er){$('ferr').textContent=er.message;$('fgo').disabled=false}};
+        const meta=await api('/api/train/dataset',{name:wiz.files[0].name.replace(/\.[^.]+$/,''),files,include_samples:!!($('fsm')&&$('fsm').checked)});showMeta(meta)}catch(er){$('ferr').textContent=er.message;$('fgo').disabled=false}};
     body.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{const m=ds.find(d=>d.id===b.dataset.use);showMeta(m)});
     $('genOpen').onclick=()=>renderGen();
+    if($('smUse'))$('smUse').onclick=async()=>{$('ferr').textContent='';try{showMeta(await api('/api/samples/dataset',{name:'聊天里收藏的样本 '+new Date().toLocaleDateString()}))}catch(er){$('ferr').textContent=er.message}};
+    if($('smShow'))$('smShow').onclick=()=>drawSamples(sm);
   }else if(wiz.step===2){
     const info=await api('/api/state'),real=info.models.filter(m=>!m.simulated&&m.downloaded),it=n=>plan(wiz.meta.n_train,n);
     body.innerHTML=stepsBar()+`<div class="card"><div class="nm">数据：${wiz.meta.name}</div><div class="rp">${wiz.meta.n_train} 条训练样本，${wiz.meta.n_valid} 条用来检验</div></div>
@@ -98,6 +104,9 @@ async function renderWiz(st){
       wiz.step=3;glow=new Float32Array(NL);deltaReal=false;renderWiz(await api('/api/train/status'));applyState(await api('/api/state'))}catch(er){$('terr').textContent=er.message;$('tgo').disabled=false}};
   }else if(wiz.step===3){drawRun(st||await api('/api/train/status'))}
   else if(wiz.step===4){drawDone(st||await api('/api/train/status'))}}
+function drawSamples(sm){const box=$('smList');if(!box)return;
+  box.innerHTML=`<div class="smpl">${sm.items.map(it=>`<div class="it"><span class="q">${escA(it.q)}</span><button data-del="${it.id}">删除</button><span class="a">${it.edited?'✎ ':''}${escA(it.a)}</span></div>`).join('')}</div>`;
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await api('/api/samples/remove',{id:b.dataset.del});const s2=await api('/api/samples');renderWiz().then(()=>drawSamples(s2))}catch(e){b.disabled=false}})}
 const plan=(n,p)=>Math.round(Math.max(20,Math.min(p==='quick'?100:600,n*(p==='quick'?1:3))));
 function showMeta(m){wiz.meta=m;$('fres').innerHTML=`<div class="card"><div class="nm">已准备好：${m.n_train} 条训练 + ${m.n_valid} 条验证</div>${(m.warnings||[]).map(w=>`<div class="err" style="color:var(--warn)">• ${w}</div>`).join('')}<pre class="pv">${(m.preview||[]).join('\n')}</pre><div class="row"><button class="btn1" id="fnext">下一步</button></div></div>`;
   $('fnext').onclick=()=>{wiz.step=2;renderWiz()}}

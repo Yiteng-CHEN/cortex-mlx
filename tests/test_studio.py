@@ -153,6 +153,10 @@ class HttpStudioTest(unittest.TestCase):
             self.assertIn('"conf": 0.62', out)                 # per-token confidence + candidates reach the browser
             self.assertIn('"alts": [["T", 0.62], ["U", 0.2]]', out)
             self.assertIn('"gid": 7', out)                     # answer id, for computing the lens afterwards
+            st.samples.add([{"role": "user", "content": "问"}, {"role": "assistant", "content": "答"}])
+            m = json.loads(post("/api/train/dataset", {"name": "x", "include_samples": True,
+                                                       "files": [{"name": "a.jsonl", "text": '{"prompt": "p", "completion": "c"}'}]}))
+            self.assertEqual(m["n_train"], 2)                     # file rows + samples saved from chat
             r = json.loads(post("/api/lens/backfill", {"gid": 7}))
             self.assertEqual(r["lens"][0][1], [1, "T", 0.9])
             out = post("/v1/chat/completions", {"stream": True, "messages": [{"role": "user", "content": "x"}]})
@@ -265,3 +269,56 @@ class ProbeCaptureTest(unittest.TestCase):
         h = p.end_capture()
         self.assertEqual([float(v) for part in h[1] for v in part[:, 0]], [3.0, 4.0, 5.0, 6.0])
         self.assertIsNone(p.capture)
+
+
+class SamplesTest(unittest.TestCase):
+    def test_collect_dedupe_remove_and_make_dataset(self):
+        from neurolume.server.samples import Samples
+        from neurolume.server.training import Datasets
+        with tempfile.TemporaryDirectory() as d:
+            s = Samples(Path(d) / "samples" / "collected.jsonl")
+            qa = [{"role": "user", "content": "起订量多少？"}, {"role": "assistant", "content": "挂耳 500 盒起订。"}]
+            r = s.add(qa)
+            self.assertEqual(r["n"], 1)
+            self.assertTrue(s.add(qa)["duplicate"])
+            with self.assertRaises(ValueError):
+                s.add([{"role": "user", "content": "只有问题"}])
+            s.add([{"role": "user", "content": "能打样吗"}, {"role": "assistant", "content": "可以。"}], edited=True)
+            lst = s.list()
+            self.assertEqual(lst["n"], 2)
+            self.assertTrue(lst["items"][0]["edited"])                 # newest first
+            meta = Datasets(Path(d) / "ds").create("t", [{"name": "collected.jsonl", "text": s.as_jsonl()}])
+            self.assertEqual(meta["n_train"], 2)            # tiny sets reuse one sample for validation
+            s.remove(lst["items"][0]["id"])
+            self.assertEqual(s.list()["n"], 1)
+
+
+class ChatImportTest(unittest.TestCase):
+    def test_chatgpt_claude_and_claude_code_exports(self):
+        from neurolume.server.training import parse_files
+        gpt = [{"title": "t", "current_node": "c", "mapping": {
+            "r": {"message": None, "parent": None},
+            "a": {"message": {"author": {"role": "user"}, "content": {"content_type": "text", "parts": ["你好"]}}, "parent": "r"},
+            "b": {"message": {"author": {"role": "assistant"}, "content": {"content_type": "text", "parts": ["你好！"]}}, "parent": "a"},
+            "x": {"message": {"author": {"role": "assistant"}, "content": {"content_type": "text", "parts": ["被丢弃的分支"]}}, "parent": "a"},
+            "c": {"message": {"author": {"role": "user"}, "content": {"content_type": "text", "parts": ["再见"]}}, "parent": "b"}}}]
+        claude = [{"name": "n", "chat_messages": [{"sender": "human", "text": "Q1"}, {"sender": "assistant", "text": "A1"},
+                                                 {"sender": "human", "text": "Q2"}, {"sender": "assistant", "text": "",
+                                                  "content": [{"type": "text", "text": "A2"}]}]}]
+        cc = [{"type": "user", "message": {"role": "user", "content": "修一下这个 bug"}},
+              {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "我先看看"},
+                                                                                {"type": "tool_use", "name": "Read"}]}},
+              {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "..."}]}},
+              {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "修好了：少了一个判断"}]}},
+              {"type": "user", "message": {"role": "user", "content": "<command-name>/clear</command-name>"}}]
+        p = parse_files([{"name": "conversations.json", "text": json.dumps(gpt)},
+                         {"name": "claude.json", "text": json.dumps(claude)},
+                         {"name": "s.jsonl", "text": "\n".join(json.dumps(o) for o in cc)}])
+        pairs = [(r["messages"][0]["content"], r["messages"][1]["content"]) for r in p["rows"]]
+        self.assertIn(("你好", "你好！"), pairs)                          # kept branch only, unanswered last turn dropped
+        self.assertNotIn("被丢弃的分支", json.dumps(pairs, ensure_ascii=False))
+        self.assertIn(("Q1", "A1"), pairs)
+        self.assertIn(("Q2", "A2"), pairs)
+        self.assertIn(("修一下这个 bug", "修好了：少了一个判断"), pairs)   # final answer only, tool turns skipped
+        self.assertEqual(len(pairs), 4)
+        self.assertTrue(any("Claude Code" in w for w in p["warnings"]))

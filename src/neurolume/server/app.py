@@ -36,8 +36,9 @@ from .export import Exporter, dir_size
 from .search import SearchError, Searcher
 from .hardware import Hardware
 from .training import Datasets, Trainer, adapter_delta
+from .samples import Samples
 
-BIG_BODY = {"/api/train/dataset": 60_000_000, "/api/books/add": 80_000_000, "/api/datagen/start": 40_000_000,
+BIG_BODY = {"/api/train/dataset": 300_000_000, "/api/books/add": 80_000_000, "/api/datagen/start": 40_000_000,
             "/api/datagen/save": 40_000_000}
 
 
@@ -151,6 +152,7 @@ class State:
         self.library = library or Library(cfg, cfg.data_dir, hf_cache_dir(cfg))
         self.datasets = Datasets(cfg.data_dir / "datasets")
         self.books = Books(cfg.data_dir / "books")
+        self.samples = Samples(cfg.data_dir / "samples" / "collected.jsonl")
         self.weights_dir = cfg.data_dir / "weights"
         self.datagen = DataGen()
         self.exporter = Exporter(cfg.data_dir)
@@ -538,6 +540,8 @@ def make_handler(state: State):
                 self._guard(lambda: self._json({"books": state.books.list()}))
             elif p == "/api/hw":
                 self._guard(lambda: self._json(state.hardware.sample()))
+            elif p == "/api/samples":
+                self._guard(lambda: self._json(state.samples.list()))
             elif p == "/api/train/datasets":
                 self._guard(lambda: self._json({"datasets": state.datasets.list()}))
             elif p == "/api/train/status":
@@ -596,7 +600,12 @@ def make_handler(state: State):
                 "/api/books/search": lambda: self._json({"hits": state.books.search(str(body.get("q", "")), 5)}),
                 "/api/search/test": lambda: self._json(self._search_test(str(body.get("q", "")))),
                 "/api/library/weights": lambda: self._json(state.dump_weights(str(body.get("key", "")))),
-                "/api/train/dataset": lambda: self._json(state.datasets.create(str(body.get("name", "")), body.get("files") or [])),
+                "/api/samples/add": lambda: self._json(state.samples.add(body.get("messages"), bool(body.get("edited")), state.active)),
+                "/api/samples/remove": lambda: self._json(state.samples.remove(str(body.get("id", "")))),
+                "/api/samples/dataset": lambda: self._json(state.datasets.create(
+                    str(body.get("name") or "聊天里收藏的样本"), [{"name": "collected.jsonl", "text": state.samples.as_jsonl()}])),
+                "/api/train/dataset": lambda: self._json(state.datasets.create(str(body.get("name", "")), (body.get("files") or [])
+                    + ([{"name": "collected.jsonl", "text": state.samples.as_jsonl()}] if body.get("include_samples") else []))),
                 "/api/train/start": lambda: self._json(self._train(body)),
                 "/api/train/cancel": lambda: (tr.cancel(), self._json(tr.status())),
             }

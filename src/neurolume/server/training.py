@@ -18,11 +18,12 @@ import time
 from pathlib import Path
 
 from ..models.train_probe import _ANSI, _PEAK, _ROW, _RUNNER
+from . import chatimport
 
 SECRET = re.compile(r"(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}"
                     r"|-----BEGIN [A-Z ]*PRIVATE KEY-----|xox[abp]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,})")
 KEYS = ["self_attn.q_proj", "self_attn.o_proj", "mlp.gate_proj", "mlp.down_proj"]
-MAX_INPUT_CHARS = 50_000_000
+MAX_INPUT_CHARS = 250_000_000      # ChatGPT exports can be large
 PAIRS = (("prompt", "completion"), ("instruction", "output"), ("instruction", "response"),
          ("question", "answer"), ("input", "output"))
 
@@ -62,7 +63,7 @@ def parse_files(files: list[dict]) -> dict:
     warnings: list[str] = []
     total = sum(len(f.get("text", "")) for f in files)
     if total > MAX_INPUT_CHARS:
-        raise ValueError("数据太大（超过 50MB），请分批导入")
+        raise ValueError("数据太大（超过 250MB），请分批导入")
     for f in files:
         name, text = str(f.get("name", "")), str(f.get("text", ""))
         cand: list[dict] = []
@@ -82,6 +83,17 @@ def parse_files(files: list[dict]) -> dict:
                         objs.append(json.loads(ln))
                     except ValueError:
                         stats["bad_lines"] += 1
+            conv = chatimport.from_export(objs if name.endswith(".json") else None)
+            if conv:                                              # ChatGPT / Claude.ai data export
+                src, crow = conv
+                stats.setdefault("imported", {})[src] = stats.get("imported", {}).get(src, 0) + len(crow)
+                cand.extend(crow)
+                objs = []
+            elif chatimport.is_claude_code(objs):                 # Claude Code session log
+                crow = chatimport.from_claude_code(objs)
+                stats.setdefault("imported", {})["Claude Code"] = stats.get("imported", {}).get("Claude Code", 0) + len(crow)
+                cand.extend(crow)
+                objs = []
             for o in objs:
                 r = _row_from(o)
                 if r:
@@ -101,6 +113,8 @@ def parse_files(files: list[dict]) -> dict:
                 continue
             seen.add(h)
             rows.append(r)
+    for src, k in (stats.get("imported") or {}).items():
+        warnings.append(f"从 {src} 的聊天记录里整理出 {k} 组问答（每个问题配上它得到的回答）")
     if stats["secrets"]:
         warnings.append(f"已剔除 {stats['secrets']} 条疑似含密钥/令牌的样本")
     if stats["bad_lines"]:
@@ -123,7 +137,7 @@ class Datasets:
         p = parse_files(files)
         rows = p["rows"]
         if not rows:
-            raise ValueError("没有读到可用的样本。支持：.jsonl（messages / prompt+completion / instruction+output / text）、.md、.txt 和代码文件")
+            raise ValueError("没有读到可用的样本。支持：.jsonl（messages / prompt+completion / instruction+output / text）、ChatGPT 或 Claude 导出的 conversations.json、Claude Code 的会话 .jsonl、.md、.txt 和代码文件")
         did = time.strftime("%Y%m%d-%H%M%S") + "-" + hashlib.sha1(json.dumps(rows[:3]).encode()).hexdigest()[:4]
         d = self.root / did
         d.mkdir(parents=True, exist_ok=True)

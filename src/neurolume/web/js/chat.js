@@ -51,10 +51,25 @@ async function send(text){
     if(st)st.textContent='🌐 已联网搜索';
     history.push({role:'assistant',content:out});
     if(LIVE&&!simResp&&frames.length)tlFinish(frames,[...new Set(frames.map(f=>f.el))]);
+    if(LIVE&&active&&!AGENT&&!simResp&&out.trim())sampleBar(last||el,text,out);
     if(LIVE&&active&&!SIM_BACKEND&&!gotEnergy)sysMsg('提示：这次回复没有收到逐层活动信号，所以立柱和层图不会亮。请把终端窗口里最后 20 行发给开发者。');
   }catch(e){el.hidden=false;el.className='m sys';el.textContent='出错：'+e.message;history.pop()}
   busy=false;$('send').disabled=false;$('inp').focus();
 }
+// ---- 存为训练样本：满意的回答直接存；不满意就先改成你想要的样子再存（这正是训练要学的）
+function sampleBar(after,q,a){const d=document.createElement('div');d.className='m-act';
+  d.innerHTML=`<button type="button" data-k="save" title="把这一问一答存进训练样本，攒够了在“训练”里一键变成数据集">存为训练样本</button><button type="button" data-k="edit" title="先把问题或回答改成你真正想要的样子，再存">改一改再存…</button><span class="m-note"></span>`;
+  after.after(d);const note=d.querySelector('.m-note');
+  const done=r=>{d.querySelectorAll('button').forEach(b=>b.disabled=true);note.textContent=r.duplicate?`这条已经存过了（共 ${r.n} 条）`:`✓ 已存为训练样本（共 ${r.n} 条）`};
+  d.querySelector('[data-k=save]').onclick=async()=>{try{done(await api('/api/samples/add',{messages:[{role:'user',content:q},{role:'assistant',content:a}]}))}catch(e){note.textContent=e.message}};
+  d.querySelector('[data-k=edit]').onclick=()=>editSample(q,a,done)}
+function editSample(q,a,done){openOv('改一改再存为训练样本');
+  $('mbody').innerHTML=`<p class="hint">训练就是让模型学会“看到这样的问题，就这样回答”。把回答改成你真正想要的样子（内容、语气、格式都可以改），模型学的就是改好的版本。</p>
+   <label class="hint" for="sq">问题</label><textarea id="sq" class="smp" rows="3"></textarea>
+   <label class="hint" for="sa">回答</label><textarea id="sa" class="smp" rows="12"></textarea>
+   <div class="row"><button class="btn1" id="ssave">存为训练样本</button><button id="scancel">取消</button></div><div class="err" id="serr"></div>`;
+  $('sq').value=q;$('sa').value=a;$('sa').focus();$('scancel').onclick=closeOv;
+  $('ssave').onclick=async()=>{$('serr').textContent='';try{const r=await api('/api/samples/add',{messages:[{role:'user',content:$('sq').value},{role:'assistant',content:$('sa').value}],edited:$('sq').value!==q||$('sa').value!==a});closeOv();done(r)}catch(e){$('serr').textContent=e.message}}}
 $('form').addEventListener('submit',e=>{e.preventDefault();const t=$('inp').value.trim();if(!t)return;$('inp').value='';send(t)});
 $('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('form').requestSubmit()}});
 function setWeb(v){WEB=v;try{localStorage.setItem('neurolume.web',v?'1':'0')}catch(_){}$('btnWeb').setAttribute('aria-pressed',String(v));$('btnWeb').textContent=v?'联网搜索：开':'联网搜索'}

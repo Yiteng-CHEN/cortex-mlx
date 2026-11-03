@@ -23,7 +23,7 @@ Most fine-tuning tools stop at "training finished, loss = 1.23". Most interpreta
 ## What you can do
 
 **Fine-tune without writing code**
-- **Bring data, or make it.** Drop in `.jsonl`, notes or code — or let the loaded model *generate* a dataset from your own files: Q&A pairs from documents, or "requests → your own code/writing" pairs that teach your style. You review and edit every item before training.
+- **Bring data, or make it.** Save good answers (or your corrected versions) from the chat with one click; drop in `.jsonl`, notes, code, or your ChatGPT / Claude / Claude Code chat history — or let the loaded model *generate* a dataset from your own files: Q&A pairs from documents, or "requests → your own code/writing" pairs that teach your style. You review and edit every item before training.
 - **Guided LoRA training** with automatic checks (secret scan, de-duplication, train/validation split), live loss, speed and memory. The base model is never modified; the result is a separate adapter.
 - **Did it work?** Validation loss *before → after* on data the model never trained on, a per-layer bar chart of how much each layer changed, and a **side-by-side comparison**: the same question answered by the original and the trained model (no reload — the adapter is switched off and on in place).
 - **Take it anywhere.** Export the fused model as MLX (LM Studio loads it directly) or to **Ollama**.
@@ -83,7 +83,9 @@ The window is split in two: **chat on the right**, and on the left **the brain o
 - In the logit-lens view the bars show the layer where each token settled instead (taller = decided later), on an axis covering only the layers that actually occur.
 
 ### 5. Training wizard
-Import data (`.jsonl`, notes, code, or have the model generate pairs from your files) → automatic checks (secrets removed, duplicates dropped, train/validation split) → pick a preset and train (live loss, speed, memory) → results: validation loss before → after, per-layer ΔW, side-by-side comparison with the base model → export as an MLX model or to Ollama.
+**Collect as you go**: every answer in the chat has “Save as training sample” and “Edit, then save…”. Save good answers as they are; fix the others into what you wanted first, and the model learns the fixed version.
+
+Import data (samples saved from chat, `.jsonl`, notes, code, **`conversations.json` exported from ChatGPT or Claude, Claude Code session `.jsonl` files**, or have the model generate pairs from your files; sources can be combined into one dataset) → automatic checks (secrets removed, duplicates dropped, train/validation split) → pick a preset and train (live loss, speed, memory) → results: validation loss before → after, per-layer ΔW, side-by-side comparison with the base model → export as an MLX model or to Ollama.
 
 ### 6. Everything else
 - **Knowledge base**: import books and documents; the model retrieves relevant passages before answering and cites them.
