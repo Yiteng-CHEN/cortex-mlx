@@ -115,7 +115,8 @@ class Backend:
         self.on = on
 
     def stream_chat(self, messages, max_tokens=1024, temperature=0.2, lens=False):
-        c = {"text": "TUNED" if self.on else "BASE", "energy": [0.1, 0.2], "tps": 1.0}
+        c = {"text": "TUNED" if self.on else "BASE", "energy": [0.1, 0.2], "tps": 1.0,
+             "token": "T", "conf": 0.62, "alts": [["T", 0.62], ["U", 0.2]]}
         if lens:
             c["lens"] = [[0, "x", 0.1], [1, "y", 0.9]]
         yield c
@@ -145,6 +146,8 @@ class HttpStudioTest(unittest.TestCase):
             self.assertTrue(st.backend.on)                      # adapter switched back on
             out = post("/v1/chat/completions", {"stream": True, "lens": True, "messages": [{"role": "user", "content": "x"}]})
             self.assertIn('"lens": [[0, "x", 0.1]', out)
+            self.assertIn('"conf": 0.62', out)                 # per-token confidence + candidates reach the browser
+            self.assertIn('"alts": [["T", 0.62], ["U", 0.2]]', out)
             out = post("/v1/chat/completions", {"stream": True, "messages": [{"role": "user", "content": "x"}]})
             self.assertNotIn('"lens"', out)
             # samples come from the adapter's validation split; val_first is the loss before training
@@ -222,3 +225,18 @@ class WeightsGenerateTest(unittest.TestCase):
                 httpd.shutdown(); httpd.server_close()
         finally:
             dump_weights.dump_from_model = orig
+
+
+class ConfidenceTest(unittest.TestCase):
+    def test_top_candidates_from_logprobs(self):
+        try:
+            import mlx.core as mx
+        except Exception:
+            self.skipTest("mlx not installed")
+        from neurolume.backends.mlx_backend import MLXBackend
+        b = MLXBackend.__new__(MLXBackend)
+        b.decode_token = lambda i: "t%d" % i
+        lp = mx.log(mx.array([[0.05, 0.6, 0.1, 0.2, 0.05]]))
+        p, alts = b._confidence(lp, 3)
+        self.assertAlmostEqual(p, 0.2, places=3)
+        self.assertEqual([a[0] for a in alts], ["t1", "t3", "t2", "t0"][:3] + [alts[3][0]])

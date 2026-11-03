@@ -58,6 +58,7 @@ const EN=[
 ["（真实，来自适配器）"," (real, from the adapter)"],["需要先加载一个真实模型","Load a real model first"],
 
 // ---- 回答时间轴 / 逐层预测 / 训练回看
+["柱子越高 = 模型在这个字上越犹豫（下面原文里颜色越深也一样）","Taller bar = the model hesitated more on this token (darker in the text below, too)"],["悬停看它当时还考虑过哪些字","hover to see what else it considered"],[" · 还考虑过："," · also considered: "],["还考虑过：","also considered: "],
 ["到最后一层都没定下来","not settled even at the last layer"],["（1 = 这段回答里的平常水平）"," (1 = typical level in this answer)"],["最忙：","busiest: "],["点柱子或下面的字回看","click a bar or a word below to revisit"],
 ["柱子越高 = 越靠后的层才想好这个字","Taller bar = settled only in a later layer"],["很有把握","confident"],["一般","so-so"],["没把握","unsure"],
 ["柱子越高 = 这个字让模型越费劲","Taller bar = the model worked harder on this token"],["（虚线 = 这段回答的平常水平）"," (dashed line = typical level for this answer)"],["（字形、语法）"," (form, grammar)"],["（意思、联想）"," (meaning, associations)"],["（决定下一个字）"," (picking the next token)"],

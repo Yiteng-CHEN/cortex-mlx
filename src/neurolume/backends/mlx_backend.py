@@ -54,6 +54,17 @@ class MLXBackend:
             self._lens_fn = fn
         return self._lens_fn
 
+    def _confidence(self, logprobs, tok: int, k: int = 4):
+        """Probability of the chosen token and the top-k candidates, from the logprobs mlx-lm already computed."""
+        import mlx.core as mx
+        lp = logprobs.reshape(-1)
+        ids = mx.argpartition(-lp, kth=k - 1)[:k]
+        vals = mx.exp(lp[ids])
+        p = mx.exp(lp[tok])
+        mx.eval(ids, vals, p)
+        pairs = sorted(zip(ids.tolist(), vals.tolist()), key=lambda x: -x[1])
+        return round(float(p.item()), 4), [[self.decode_token(int(i)), round(float(v), 4)] for i, v in pairs]
+
     def decode_token(self, tid: int) -> str:
         try:
             return self._tokenizer.decode([tid])
@@ -98,7 +109,7 @@ class MLXBackend:
 
     def stream_chat(self, messages: list[dict], *, max_tokens: int = 1024, temperature: float = 0.2,
                     lens: bool = False):
-        """Yield {"text", "energy" (per-layer list or None), "tps", "lens"} per generated chunk."""
+        """Yield {"text", "energy" (per-layer list or None), "tps", "lens", "token", "conf", "alts"} per generated chunk."""
         from mlx_lm import stream_generate
         from mlx_lm.sample_utils import make_sampler
 
@@ -125,6 +136,12 @@ class MLXBackend:
                     tok = getattr(resp, "token", None)
                     if tok is not None:
                         out["token"] = self.decode_token(int(tok))
+                        lp = getattr(resp, "logprobs", None)
+                        if lp is not None:
+                            try:
+                                out["conf"], out["alts"] = self._confidence(lp, int(tok))
+                            except Exception:      # never let the visualisation break generation
+                                pass
                 yield out
         finally:
             if self._probe:

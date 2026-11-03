@@ -35,8 +35,8 @@ function syncLensCtl(n){const fs=$('lensFrom'),ts=$('lensTo');if(fs.options.leng
   document.querySelectorAll('#lensPre button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.p==='all'&&f===0&&t===n-1)||(b.dataset.p==='half'&&f===Math.floor(n/2)&&t===n-1)||(b.dataset.p==='last16'&&f===Math.max(0,n-16)&&t===n-1))));return[f,t]}
 function tlRender(){cancelAnimationFrame(tlRaf);tlRaf=requestAnimationFrame(()=>{if(tlShow())drawTimeline();if(mode==='lens')drawLens()})}
 // ---- 回答回放：每个字一根柱子 + 原文着色（替代原来 40 行的热力图，那张图字一多就只剩噪点）
-// 推理视图：柱高 = 这个字让模型比这段回答里的平常水平“多忙了多少”（每层先除以该层在这段回答里的中位数，再平均）；
-//           颜色 = 最忙的是哪一段层（青 = 浅层，绿 = 中层，橙 = 深层）
+// 推理视图：柱高 = 模型在这个字上有多犹豫（1 − 它给这个字的概率），颜色 = 把握；悬停能看到它当时还在考虑哪些字。
+//           实测：逐层活动量在不同字之间只差 ±10%，画出来几乎一样高，所以不再用它画柱子（老版本服务没有概率时才退回用它）
 // 逐层预测视图：柱高 = 第几层才定下来（越高 = 越晚才想好），颜色 = 最后一层的把握（青 = 很有把握，黄 = 一般，橙红 = 没把握）
 const BANDC=[[76,195,217],[132,206,98],[242,152,58]],BANDN=new Proxy([],{get:(_,i)=>(LANG==='en'?['shallow layers','middle layers','deep layers']:['浅层','中层','深层'])[i]});
 const pct=(a,q)=>{const s=a.filter(x=>x!=null&&isFinite(x)).sort((x,y)=>x-y);return s.length?s[Math.min(s.length-1,Math.max(0,Math.round(q*(s.length-1))))]:0};
@@ -52,6 +52,7 @@ function tlMetrics(idx){
     return {kind:'lens',L,lo,rows:idx.map((i,j)=>{const f=F[i];if(!f.lens||!f.lens.length)return null;const lk=lks[j];
       const top=f.lens.reduce((a,r)=>r[0]>a[0]?r:a),p=top[2],v=lk==null?1:Math.max(.04,(lk-lo)/(L-1-lo));
       return {v,c:confC(p),lk,p}})}}
+  if(idx.some(i=>F[i].p!=null))return {kind:'conf',rows:idx.map(i=>{const p=F[i].p;return p==null?null:{v:Math.max(.03,Math.sqrt(1-p)),c:confC(p),p,alts:F[i].alts}})};
   const E=idx.map(i=>F[i].e);const f0=E.find(Boolean);if(!f0)return null;const n=f0.length;
   const b1=Math.round(n/3),b2=Math.round(2*n/3),band=l=>l<b1?0:l<b2?1:2;
   const med=[...Array(n)].map((_,l)=>Math.max(1e-9,pct(E.map(r=>r&&r[l]),.5)));
@@ -63,6 +64,10 @@ function tlMetrics(idx){
   return {kind:'infer',base:SIGRAW?null:Math.sqrt(clamp((1-lo)/(hi-lo),0,1)),bands:[[0,b1-1],[b1,b2-1],[b2,n-1]],
     rows:raw.map(r=>r&&{v:Math.max(.04,Math.sqrt(clamp((r.eff-lo)/(hi-lo),0,1))),c:BANDC[r.dom],dom:r.dom,eff:r.eff})}}
 let TLM=null;
+// 备选字：模型生成这个字时概率最高的几个候选（不含它最终选的那个）
+const altTxt=(r,f)=>{const o=ftok(f),a=(r.alts||[]).filter(x=>x[0]!==o&&x[1]>=.01).slice(0,3),en=LANG==='en';
+  return a.length?(en?' · also considered: ':' · 还考虑过：')+a.map(x=>(en?`“${dispTok(x[0])}” `:`「${dispTok(x[0])}」`)+Math.round(x[1]*100)+'%').join(en?', ':'、'):''};
+const tipTxt=(r,f)=>(LANG==='en'?'confidence ':'把握 ')+Math.round(r.p*100)+'%'+altTxt(r,f);   // 原文区域不经过翻译器，直接按语言生成
 function drawTimeline(){
   const c=$('tlc'),d=Math.min(devicePixelRatio||1,2),w=c.clientWidth,idx=srcIdx(),n=idx.length,h=84;
   c.width=w*d;c.height=h*d;c.style.height=h+'px';const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);
@@ -84,17 +89,21 @@ function drawTimeline(){
   const f=SRC.frames[k>=0?CUR:idx[n-1]],lk=f&&lockLayer(f),r=k>=0&&M?M.rows[k]:null;
   let info='';if(k>=0){info=` · 第 ${k+1} 个：「${dispOut(f)}」`;
     if(r&&M.kind==='lens')info+=lk!=null?` · 第 ${lk} 层定下来 · 把握 ${Math.round(r.p*100)}%`:` · 到最后一层都没定下来 · 把握 ${Math.round(r.p*100)}%`;
+    else if(r&&M.kind==='conf')info+=` · 把握 ${Math.round(r.p*100)}%`+altTxt(r,f);
     else if(r)info+=` · 忙碌程度 ${r.eff.toFixed(2)} 倍 · 最忙：${BANDN[r.dom]}`}
   $('tlLab').textContent=(selDriven?'选中的内容':(busy?'正在生成':'最近一次回答'))+` · ${n} 个字`+(k>=0?info:' · 点柱子或下面的字回看');
-  $('tlKey').innerHTML=!M?'':M.kind==='lens'
+  const sw=p=>`<i class="sw" style="background:${rgb(confC(p))}"></i>`;
+  $('tlKey').innerHTML=!M?'':M.kind==='conf'
+    ?`<span>柱子越高 = 模型在这个字上越犹豫（下面原文里颜色越深也一样）</span><span>${sw(.95)}很有把握</span><span>${sw(.6)}一般</span><span>${sw(.25)}没把握</span><span>悬停看它当时还考虑过哪些字</span>`
+    :M.kind==='lens'
     ?`<span>柱子越高 = 越靠后的层才想好这个字（纵轴 L${M.lo}–L${M.L-1}）</span><span><i class="sw" style="background:${rgb(confC(.95))}"></i>很有把握</span><span><i class="sw" style="background:${rgb(confC(.6))}"></i>一般</span><span><i class="sw" style="background:${rgb(confC(.25))}"></i>没把握</span>`
     :`<span>柱子越高 = 这个字让模型越费劲${M.base!=null?'（虚线 = 这段回答的平常水平）':''}</span>${BANDC.map((col,i)=>`<span><i class="sw" style="background:${rgb(col)}"></i>${BANDN[i]} L${M.bands[i][0]}–${M.bands[i][1]}${['（字形、语法）','（意思、联想）','（决定下一个字）'][i]}</span>`).join('')}`;
   drawTlText(idx,M,k)}
 // 原文着色：和柱子同一套颜色，深浅 = 柱高；点任意一个字回看
 function drawTlText(idx,M,k){const box=$('tlt'),F=SRC.frames;if(!M){box.innerHTML='';return}
   let html='';for(let j=0;j<idx.length;j++){const f=F[idx[j]],t=f.t;if(!t)continue;const r=M.rows[j];
-    const bg=r?rgb(r.c,(isDark?.12:.1)+r.v*(isDark?.62:.5)):'transparent',low=M.kind==='lens'&&r&&r.p<.5;
-    html+=`<span data-k="${j}" class="${j===k?'on':''}${low?' low':''}" style="background:${bg}">${escH(t)}</span>`}
+    const a=M.kind==='conf'?(r?Math.min(.75,r.v*1.1):0):(r?(isDark?.12:.1)+r.v*(isDark?.62:.5):0),bg=r&&a>.03?rgb(r.c,a):'transparent',low=M.kind!=='infer'&&r&&r.p<.5;
+    html+=`<span data-k="${j}" class="${j===k?'on':''}${low?' low':''}" style="background:${bg}"${r&&r.p!=null?` title="${escH(tipTxt(r,f))}"`:''}>${escH(t)}</span>`}
   box.innerHTML=html;const on=box.querySelector('.on');
   if(on){const bt=on.offsetTop-box.offsetTop;if(bt<box.scrollTop||bt>box.scrollTop+box.clientHeight-20)box.scrollTop=bt-box.clientHeight/2}
   else if(busy&&!selDriven)box.scrollTop=box.scrollHeight}
@@ -119,7 +128,7 @@ let _selT=0;document.addEventListener('selectionchange',()=>{clearTimeout(_selT)
   $('tlt').addEventListener('click',e=>{const sp=e.target.closest('span[data-k]');if(!sp)return;clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';tlPick(srcIdx()[+sp.dataset.k])});
   const tip=$('tip');c.addEventListener('pointerleave',()=>tip.hidden=true);
   c.addEventListener('mousemove',e=>{if(!TLM||!TLM.M||!TLM.idx.length){tip.hidden=true;return}const r=c.getBoundingClientRect(),j=clamp(Math.floor((e.clientX-r.left)/r.width*TLM.idx.length),0,TLM.idx.length-1),f=SRC.frames[TLM.idx[j]],m=TLM.M.rows[j];if(!f||!m){tip.hidden=true;return}
-    tip.innerHTML=`<b>第 ${j+1} 个字：「${escH(dispOut(f))}」</b><br>`+(TLM.M.kind==='lens'?(m.lk!=null?`第 ${m.lk} 层定下来`:'到最后一层都没定下来')+` · 把握 ${Math.round(m.p*100)}%`:`忙碌程度 ${m.eff.toFixed(2)} 倍 · 最忙：${BANDN[m.dom]}`);
+    tip.innerHTML=`<b>第 ${j+1} 个字：「${escH(dispOut(f))}」</b><br>`+(TLM.M.kind==='conf'?escH(tipTxt(m,f)).replace(' · ','<br>'):TLM.M.kind==='lens'?(m.lk!=null?`第 ${m.lk} 层定下来`:'到最后一层都没定下来')+` · 把握 ${Math.round(m.p*100)}%`:`忙碌程度 ${m.eff.toFixed(2)} 倍 · 最忙：${BANDN[m.dom]}`);
     tip.hidden=false;tip.style.left=Math.min(innerWidth-320,e.clientX+14)+'px';tip.style.top=(e.clientY+16)+'px'});
   $('tlr').oninput=()=>{clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';const idx=srcIdx();tlPick(idx[+$('tlr').value])};
   $('tlPlay').onclick=()=>{if(tlTimer){clearInterval(tlTimer);tlTimer=null;$('tlPlay').textContent='▶ 回放';return}const idx=srcIdx();if(!idx.length)return;

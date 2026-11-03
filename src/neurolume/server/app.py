@@ -678,7 +678,7 @@ def make_handler(state: State):
                     yield from websearch.run(chat, msgs_in, state.searcher(), lang=lang)
                 else:
                     for c in chat(msgs_in):
-                        yield {"type": "text", "text": c["text"], "energy": c.get("energy"), "tps": c.get("tps"), "lens": c.get("lens"), "token": c.get("token")}
+                        yield {"type": "text", "text": c["text"], "energy": c.get("energy"), "tps": c.get("tps"), "lens": c.get("lens"), "token": c.get("token"), "conf": c.get("conf"), "alts": c.get("alts")}
 
             with state.lock:
                 if not body.get("stream"):
@@ -704,8 +704,9 @@ def make_handler(state: State):
                                 extra = {"energy": e.get("energy"), "tps": e.get("tps"), "simulated": simulated}
                                 if e.get("lens"):
                                     extra["lens"] = e["lens"]
-                                if e.get("token") is not None:
-                                    extra["token"] = e["token"]
+                                for k in ("token", "conf", "alts"):
+                                    if e.get(k) is not None:
+                                        extra[k] = e[k]
                                 seen_energy += 1 if e.get("energy") else 0
                                 self.wfile.write(chunk({"content": e["text"]} if e["text"] else {}, extra))
                             elif e["type"] == "status":

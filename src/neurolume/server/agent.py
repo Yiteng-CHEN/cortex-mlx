@@ -444,7 +444,7 @@ def run(chat, messages: list[dict], ws: Workspace, props: Proposals, *, lang: st
                         end = len(buf) - _holdback(buf)
                     piece = buf[emitted:end]
                     emitted = max(emitted, end)
-                    yield {"type": "text", "text": piece, "energy": c.get("energy"), "tps": c.get("tps"), "lens": c.get("lens"), "token": c.get("token")}
+                    yield {"type": "text", "text": piece, "energy": c.get("energy"), "tps": c.get("tps"), "lens": c.get("lens"), "token": c.get("token"), "conf": c.get("conf"), "alts": c.get("alts")}
                     if call_end is not None:
                         break
             finally:
