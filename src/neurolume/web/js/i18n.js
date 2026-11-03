@@ -59,6 +59,7 @@ const EN=[
 
 // ---- 回答时间轴 / 逐层预测 / 训练回看
 ["柱子越高 = 模型在这个字上越犹豫（下面原文里颜色越深也一样）","Taller bar = the model hesitated more on this token (darker in the text below, too)"],["悬停看它当时还考虑过哪些字","hover to see what else it considered"],[" · 还考虑过："," · also considered: "],["还考虑过：","also considered: "],
+["回答越长越久，1000 字大约要 15 秒。"," Longer answers take longer: about 15 s for 1000 tokens."],["回答生成完以后，会在这里补算逐层预测。","Once the answer is finished, the logit lens is computed for it here."],["无法补算逐层预测：","Could not compute the logit lens: "],["这段回答已经不在服务器的记录里（只保留最近 12 次回答，或者模型重新加载过）","This answer is no longer kept by the server (only the last 12 answers are, and none after a model reload)"],
 ["到最后一层都没定下来","not settled even at the last layer"],["（1 = 这段回答里的平常水平）"," (1 = typical level in this answer)"],["最忙：","busiest: "],["点柱子或下面的字回看","click a bar or a word below to revisit"],
 ["柱子越高 = 越靠后的层才想好这个字","Taller bar = settled only in a later layer"],["很有把握","confident"],["一般","so-so"],["没把握","unsure"],
 ["柱子越高 = 这个字让模型越费劲","Taller bar = the model worked harder on this token"],["（虚线 = 这段回答的平常水平）"," (dashed line = typical level for this answer)"],["（字形、语法）"," (form, grammar)"],["（意思、联想）"," (meaning, associations)"],["（决定下一个字）"," (picking the next token)"],
@@ -241,7 +242,7 @@ const EN=[
 // ---- 标点（最后统一处理）
 ];
 const EN_RX=[
-[/第 (\d+) 个字：「/g,"token $1: “"],[/第 (\d+) 层定下来/g,"settled at layer $1"],[/把握 (\d+)%/g,"confidence $1%"],[/（纵轴 L(\d+)–L(\d+)）/g," (axis L$1–L$2)"],[/忙碌程度 ([\d.]+) 倍/g,"effort $1×"],[/(\d+) 个字/g,"$1 tokens"],[/第 (\d+) 个：「/g,"token $1: “"],[/」/g,"”"],[/从第 (\d+) 层起就定下来了/g,"settled from layer $1 on"],
+[/第 (\d+) 个字：「/g,"token $1: “"],[/第 (\d+) 层定下来/g,"settled at layer $1"],[/把握 (\d+)%/g,"confidence $1%"],[/正在补算这段回答的逐层预测（(\d+) 个字）：把回答再过一遍模型，读出每一层的猜测，不影响生成速度…/g,"Computing the logit lens for this answer ($1 tokens): running it through the model once more and reading every layer's guess; generation speed is not affected…"],[/（纵轴 L(\d+)–L(\d+)）/g," (axis L$1–L$2)"],[/忙碌程度 ([\d.]+) 倍/g,"effort $1×"],[/(\d+) 个字/g,"$1 tokens"],[/第 (\d+) 个：「/g,"token $1: “"],[/」/g,"”"],[/从第 (\d+) 层起就定下来了/g,"settled from layer $1 on"],
 [/第 (\d+)\/(\d+) 段/g,"piece $1/$2"],[/已处理 (\d+)\/(\d+) 段，得到 (\d+) 条/g,"Processed $1/$2 pieces, $3 items so far"],[/共 (\d+) 条。/g,"$1 items. "],[/保留第 (\d+) 条/g,"Keep item $1"],
 [/《([^》]*)》第 (\d+) 段/g,"“$1” passage $2"],[/（当前启用 (\d+) 段）/g,(m,n)=>" ("+n+" passage"+(n==1?"":"s")+" enabled)"],[/(\d+) 段/g,(m,n)=>n+" passage"+(n==1?"":"s")],[/([\d.]+) 万字/g,(m,n)=>Math.round(n*10)/10+"×10k chars"],[/^(\d) 训练$/,"$1 Train"],[/^(\d) 完成$/,"$1 Done"],[/(\d+) 时 /g,"$1 h "],[/(\d+) 分钟/g,"$1 min"],[/(\d+) 分(?!钟)/g,"$1 min"],
 [/已读取 (\d+) 个网页，正在整理回答/g,"Read $1 pages, preparing the answer"],

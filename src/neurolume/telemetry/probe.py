@@ -77,6 +77,8 @@ class LayerProbe:
         self._e: dict[int, object] = {}
         self._h: dict[int, object] = {}
         self.aligner = Aligner()
+        # backfill mode: keep every layer's output for the global positions [lo, hi) (see capture_range)
+        self.capture: dict | None = None
         for i, block in enumerate(container):
             if not isinstance(block, _Wrapped):
                 container[i] = _Wrapped(block, i, self)
@@ -85,10 +87,28 @@ class LayerProbe:
         self._e, self._h = {}, {}
         self.aligner.reset()
 
+    def capture_range(self, lo: int, hi: int) -> None:
+        """Start keeping hidden states of positions lo..hi-1 (counted over all following forward calls)."""
+        self.capture = {"lo": lo, "hi": hi, "off": 0, "h": [[] for _ in range(self.n)]}
+
+    def end_capture(self) -> list:
+        """Per layer: list of [T_i, d] slices, in position order."""
+        c, self.capture = self.capture, None
+        return c["h"] if c else []
+
     def record(self, i: int, x, out) -> None:
+        o = out[0] if isinstance(out, tuple) else out
+        c = self.capture
+        if c is not None:
+            t = o.shape[-2]
+            a, b = max(c["lo"], c["off"]), min(c["hi"], c["off"] + t)
+            if a < b:
+                c["h"][i].append(o[0, a - c["off"]:b - c["off"], :])
+            if i == self.n - 1:
+                c["off"] += t
+            return
         import mlx.core as mx
 
-        o = out[0] if isinstance(out, tuple) else out
         xl = x[..., -1, :].astype(mx.float32)
         ol = o[..., -1, :].astype(mx.float32)
         self._e[i] = mx.mean(mx.abs(ol - xl)) / (mx.mean(mx.abs(xl)) + 1e-6)

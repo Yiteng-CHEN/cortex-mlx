@@ -20,6 +20,8 @@ other layers in the same step, then squares it. This makes changes visible (othe
 dominate) but exaggerates differences. The raw measured value of a layer is shown in the layer-map tooltip.
 (An earlier "enhanced / raw" toggle was removed: it only affected the live view and looked like it did nothing.)
 
+**Logit lens afterwards (backfill)**: the server keeps the prompt and answer token ids of the last 12 answers. Opening the lens view for an answer generated without it re-runs prompt + answer through the model once (chunked prefill with a KV cache), keeps every layer's hidden state at the positions that produced each answer token, and applies the same final norm + output head. Verified on Qwen3.6-27B: the last layer's top token equals the sampled token for 37 of 38 tokens (the other one was a sampling choice); 295 tokens took 4.3 s. Live lens costs about 16 % generation speed on that model (10.8 → 9.1 tok/s), which is why it is not always on.
+
 **Links between layers** (layer map): the bundle between layers *l* and *l+1* is lit by `sqrt(a_l · a_{l+1})` of the displayed activities, so it is bright only when both layers are busy. When a token is picked in the replay, each layer's activity is that token's value relative to the layer's range over the shown answer, mixed with its value relative to the other layers for that token (same formula as above). Which of the 16 thin lines in a bundle joins which two matrices, and the moving dots, are illustrative.
 
 **Answer replay bars**: on real hardware this activity varied only about ±10 % between tokens of one answer, so it is
@@ -73,6 +75,7 @@ the chat). Clicking or dragging pins the brain and layer views to that token.
 
 - **逐层活动**：每生成一个字，在每一层的最后一个位置测量 `mean(|输出-输入|) / mean(|输入|)`，即这一层把内部表示改了多少。这是真实测量值，不代表这一层“重要”。
   - 亮度：结合每层相对自己的变化和相对其他层的差别再平方，便于看出变化，但会放大差异；原始测量值在层图的悬停提示里。（原来的“增强 / 原始”开关已去掉：它只影响实时画面，看起来像没反应。）
+  - 逐层预测补算：服务器保留最近 12 次回答的提示和回答 token。生成时没打开逐层预测、之后再打开，会把“提示 + 回答”再过一遍模型（分块预填充 + KV 缓存），取出每个回答 token 对应位置上每一层的隐藏状态，用同样的最终归一化 + 输出层读出预测。Qwen3.6-27B 实测：38 个字里 37 个最后一层的预测等于实际输出（另一个是采样造成的）；295 个字用时 4.3 秒。边生成边算会让这个模型慢约 16%（10.8 → 9.1 字/秒），所以默认不一直开。
   - 层图连线：第 *l* 层和第 *l+1* 层之间那一束线的亮度 = 两层显示亮度的几何平均，只有两层都活跃才亮。在回放里选中一个字时，每层亮度 = 这个字在该层的值相对“该层在这段回答里的范围”，再结合相对“这个字在其他层”的值（公式同上）。一束线里 16 条细线具体连哪两个矩阵、亮点的移动是示意。
   - 实测同一段回答里不同字的逐层活动只差约 ±10%，所以不用它来比较字；回答回放的柱子用的是模型给它输出的那个字的概率（mlx-lm 本来就算好的 logprobs），并列出概率最高的几个备选字。
 - **脑图（球体 / 星云）**：每一圈 / 每段高度对应一层，左侧刻度准确。金色放电只在模型生成或训练时出现，频率跟随显卡/内存占用和逐层活动；**放电在球面上的走向是为了美观生成的，不是测量值**。

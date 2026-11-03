@@ -116,10 +116,14 @@ class Backend:
 
     def stream_chat(self, messages, max_tokens=1024, temperature=0.2, lens=False):
         c = {"text": "TUNED" if self.on else "BASE", "energy": [0.1, 0.2], "tps": 1.0,
-             "token": "T", "conf": 0.62, "alts": [["T", 0.62], ["U", 0.2]]}
+             "token": "T", "conf": 0.62, "alts": [["T", 0.62], ["U", 0.2]], "gid": 7}
         if lens:
             c["lens"] = [[0, "x", 0.1], [1, "y", 0.9]]
         yield c
+
+
+    def lens_backfill(self, gid):
+        return {"gid": gid, "tokens": ["T"], "lens": [[[0, "x", 0.1], [1, "T", 0.9]]]}
 
 
 class HttpStudioTest(unittest.TestCase):
@@ -148,6 +152,9 @@ class HttpStudioTest(unittest.TestCase):
             self.assertIn('"lens": [[0, "x", 0.1]', out)
             self.assertIn('"conf": 0.62', out)                 # per-token confidence + candidates reach the browser
             self.assertIn('"alts": [["T", 0.62], ["U", 0.2]]', out)
+            self.assertIn('"gid": 7', out)                     # answer id, for computing the lens afterwards
+            r = json.loads(post("/api/lens/backfill", {"gid": 7}))
+            self.assertEqual(r["lens"][0][1], [1, "T", 0.9])
             out = post("/v1/chat/completions", {"stream": True, "messages": [{"role": "user", "content": "x"}]})
             self.assertNotIn('"lens"', out)
             # samples come from the adapter's validation split; val_first is the loss before training
@@ -240,3 +247,21 @@ class ConfidenceTest(unittest.TestCase):
         p, alts = b._confidence(lp, 3)
         self.assertAlmostEqual(p, 0.2, places=3)
         self.assertEqual([a[0] for a in alts], ["t1", "t3", "t2", "t0"][:3] + [alts[3][0]])
+
+
+class ProbeCaptureTest(unittest.TestCase):
+    def test_keeps_answer_positions_across_prefill_chunks(self):
+        import numpy as np
+        from neurolume.telemetry.probe import LayerProbe
+        blocks = [lambda x: x, lambda x: x]
+        p = LayerProbe(blocks)
+        p.enabled = True
+        p.capture_range(3, 7)                         # positions 3..6 of a 9-token sequence
+        seq = np.arange(9, dtype=np.float32).reshape(1, 9, 1)
+        for s in range(0, 9, 4):                     # chunked prefill: 4 + 4 + 1
+            chunk = seq[:, s:s + 4, :]
+            for b in blocks:
+                chunk = b(chunk)
+        h = p.end_capture()
+        self.assertEqual([float(v) for part in h[1] for v in part[:, 0]], [3.0, 4.0, 5.0, 6.0])
+        self.assertIsNone(p.capture)

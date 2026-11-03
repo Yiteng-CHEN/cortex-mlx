@@ -34,11 +34,17 @@ class MLXBackend:
             self._probe = LayerProbe(mlxutil.find_layer_container(self._model))
         self.num_layers = self._probe.n if self._probe else None
         self._lens_fn = None
+        self._adapter_on = True
+        # recent answers (token ids) so the logit lens can be computed afterwards, see lens_backfill
+        from collections import OrderedDict
+        self._gens: "OrderedDict[int, dict]" = OrderedDict()
+        self._gid = 0
 
     # ---- adapter on/off without reloading (for before/after comparisons)
     def set_adapter_enabled(self, on: bool) -> None:
         for m, s in zip(self._lora, self._lora_scale):
             m.scale = s if on else 0.0
+        self._adapter_on = on
 
     # ---- logit lens
     def _lens(self):
@@ -64,6 +70,72 @@ class MLXBackend:
         mx.eval(ids, vals, p)
         pairs = sorted(zip(ids.tolist(), vals.tolist()), key=lambda x: -x[1])
         return round(float(p.item()), 4), [[self.decode_token(int(i)), round(float(v), 4)] for i, v in pairs]
+
+    KEEP_GENS = 12
+
+    def _prompt_ids(self, formatted: str) -> list[int]:
+        """Tokenize exactly as mlx_lm.stream_generate does for a string prompt."""
+        tok = self._tokenizer
+        bos = getattr(tok, "bos_token", None)
+        add = bos is None or not formatted.startswith(bos)
+        return list(tok.encode(formatted, add_special_tokens=add))
+
+    def lens_backfill(self, gid: int, chunk: int = 512, log=None) -> dict:
+        """Logit lens for every token of an earlier answer, computed afterwards.
+
+        Re-runs one forward pass over prompt + answer (chunked prefill with a KV cache), keeps every layer's
+        hidden state at the positions that produced each answer token, and reads them through the model's
+        own final norm + output head. Same numbers as the live lens, without slowing generation down.
+        """
+        import mlx.core as mx
+        from mlx_lm.models.cache import make_prompt_cache
+
+        rec = self._gens.get(int(gid))
+        if rec is None:
+            raise RuntimeError("这段回答已经不在服务器的记录里（只保留最近 %d 次回答，或者模型重新加载过）" % self.KEEP_GENS)
+        if not self._probe:
+            raise RuntimeError("逐层预测需要层探针")
+        lens = self._lens()
+        prompt, gen = rec["prompt"], rec["gen"]
+        if not gen:
+            return {"gid": gid, "tokens": [], "lens": []}
+        full = prompt + gen[:-1]                       # the pass that produced gen[j] ends at position len(prompt)-1+j
+        lo = len(prompt) - 1
+        restore = self._adapter_on
+        if rec.get("adapter", True) != restore:
+            self.set_adapter_enabled(rec.get("adapter", True))
+        self._probe.enabled = True
+        self._probe.capture_range(lo, len(full))
+        try:
+            cache = make_prompt_cache(self._model)
+            arr = mx.array(full)
+            for s in range(0, len(full), chunk):
+                self._model(arr[s:s + chunk][None], cache=cache)
+                keep = [x[-1] for x in self._probe.capture["h"] if x]
+                mx.eval([c.state for c in cache] + keep)
+            hs = self._probe.end_capture()
+        finally:
+            self._probe.capture = None
+            self._probe.enabled = False
+            if self._adapter_on != restore:
+                self.set_adapter_enabled(restore)
+        H = [mx.concatenate(h, axis=0) for h in hs]   # per layer [G, d]
+        n, G = len(H), len(gen)
+        vocab = int(getattr(self._tokenizer, "vocab_size", 0) or 0) or 160000
+        step = max(1, int(1.2e9 // (n * max(vocab, 1) * 4)))   # keep the float32 logits of one batch around 1.2 GB
+        out: list = []
+        for s in range(0, G, step):
+            e = min(G, s + step)
+            rows = mx.concatenate([h[s:e] for h in H], axis=0)          # [n*(e-s), d], layer-major
+            ids, probs = lens(rows)
+            mx.eval(ids, probs)
+            ids, probs = ids.tolist(), probs.tolist()
+            k = e - s
+            for j in range(k):
+                out.append([[l, self.decode_token(int(ids[l * k + j])), round(float(probs[l * k + j]), 3)] for l in range(n)])
+            if log:
+                log(e, G)
+        return {"gid": gid, "tokens": [self.decode_token(t) for t in gen], "lens": out}
 
     def decode_token(self, tid: int) -> str:
         try:
@@ -114,6 +186,12 @@ class MLXBackend:
         from mlx_lm.sample_utils import make_sampler
 
         formatted = self._format_messages(messages)
+        prompt_ids = self._prompt_ids(formatted)
+        self._gid += 1
+        gid, gen_ids = self._gid, []
+        self._gens[gid] = {"prompt": prompt_ids, "gen": gen_ids, "adapter": self._adapter_on}
+        while len(self._gens) > self.KEEP_GENS:
+            self._gens.popitem(last=False)
         if self._probe:
             self._probe.start()
             self._probe.enabled = True
@@ -124,10 +202,12 @@ class MLXBackend:
                 except AttributeError:
                     self._probe.lens = None
         try:
-            for resp in stream_generate(self._model, self._tokenizer, formatted,
+            for resp in stream_generate(self._model, self._tokenizer, prompt_ids,
                                         max_tokens=max_tokens, sampler=make_sampler(temp=temperature)):
-                out = {"text": resp.text, "energy": None,
+                out = {"text": resp.text, "energy": None, "gid": gid,
                        "tps": round(getattr(resp, "generation_tps", 0.0) or 0.0, 1) or None}
+                if getattr(resp, "token", None) is not None:
+                    gen_ids.append(int(resp.token))
                 if self._probe:
                     energy, got = self._probe.take()
                     out["energy"] = energy

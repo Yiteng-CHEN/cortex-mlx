@@ -34,7 +34,7 @@ async function send(text){
         let i;while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+2);if(!line.startsWith('data:'))continue;const p=line.slice(5).trim();if(p==='[DONE]')continue;
           const o=JSON.parse(p);if(o.error)throw new Error(o.error);const d=o.choices&&o.choices[0].delta;
           if(d&&d.content){if(!cur){cur=document.createElement('div');cur.className='m a';place(cur);seg='';if(out)out+='\n\n'}out+=d.content;seg+=d.content;render(cur,seg);$('msgs').scrollTop=1e9}
-          const nx=o.neurolume;if(nx&&nx.simulated)simResp=true;if(nx&&(nx.energy||nx.lens||nx.conf!=null)&&!simResp){frames.push({t:(d&&d.content)||'',tok:nx.token,e:nx.energy||null,lens:nx.lens||null,p:nx.conf,alts:nx.alts||null,el:cur||el});tlLive(frames)}
+          const nx=o.neurolume;if(nx&&nx.simulated)simResp=true;if(nx&&(nx.energy||nx.lens||nx.conf!=null)&&!simResp){frames.push({t:(d&&d.content)||'',tok:nx.token,e:nx.energy||null,lens:nx.lens||null,p:nx.conf,alts:nx.alts||null,gid:nx.gid,el:cur||el});tlLive(frames)}
           if(o.neurolume&&o.neurolume.agent){toAgent();onAgent(o.neurolume.agent,place,cards);$('msgs').scrollTop=1e9}
           if(o.neurolume&&o.neurolume.status){if(!st){st=document.createElement('div');st.className='m sys';el.after(st)}st.textContent='🌐 '+o.neurolume.status}
           if(o.neurolume&&o.neurolume.sources)srcs=(srcs||[]).concat(o.neurolume.sources);

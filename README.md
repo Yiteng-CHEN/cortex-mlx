@@ -73,7 +73,7 @@ The window is split in two: **chat on the right**, and on the left **the brain o
 | **Inference** | One column per layer, four matrices per layer: attention Q, attention output, MLP gate, MLP down-projection; each cell is a real weight from that matrix (evenly spaced sample). While generating, a layer is brighter the more it changes the token's representation. The bundle of links between two neighbouring layers is lit by the geometric mean of the two, so **it is thick and bright only when both layers are busy, and faint if either is quiet**. Hover a cell for the real weight and the layer's raw measurement. |
 | **Train** | The adapter's real ΔW (green = weight increased, orange-red = decreased); the bars below are the total change per layer, and you can pick any trained adapter to review. LoRA trains only the last 16 layers by default, so unchanged early layers are expected. |
 | **Weights** | The static weights: orange = positive, cyan = negative, intensity = \|w\| ÷ the matrix's std (capped at 3σ). |
-| **Logit lens** | A table: one column per generated token, one row per layer showing what that layer would output “if the model stopped here”; darker = more confident. A green underline means the layer already agrees with the final output; the “Settled” row says from which layer on. ◇ is a byte fragment of a multi-byte character. Choose which layers to show: all / second half / last 16 / a custom range and step. |
+| **Logit lens** | A table: one column per generated token, one row per layer showing what that layer would output “if the model stopped here”; darker = more confident. A green underline means the layer already agrees with the final output; the “Settled” row says from which layer on. ◇ is a byte fragment of a multi-byte character. Choose which layers to show: all / second half / last 16 / a custom range and step. If the view was closed while the answer was generated, switching to it computes the lens for that answer afterwards. |
 
 ### 4. Answer replay (below the layer window)
 - **One bar per token**: taller = the model hesitated more on it (1 − the probability it gave that token). Colour: cyan = confident, yellow = so-so, orange-red = unsure. The white line is a smoothed trend.
@@ -137,7 +137,7 @@ Data lives in `~/Library/Application Support/Neurolume`; models download into th
 
 - Apple Silicon only (MLX). One model at a time; training and chat don't run together.
 - Fine-tuning teaches style and habits better than facts — use the knowledge base for documents.
-- The logit lens costs about one extra output-head pass per shown layer per token, so it only runs while its view is open.
+- Logit lens: with its view open it is computed while generating (measured on Qwen3.6-27B: about 10.8 → 9.1 tok/s); with the view closed generation is not slowed, and switching to the view afterwards computes it for that answer in one extra pass (295 tokens in about 4 s). The server keeps the last 12 answers; answers from before a model reload cannot be backfilled.
 - Ollama export dequantizes the weights first (≈ 4× the size) and depends on Ollama supporting the architecture.
 
 ## How it is built

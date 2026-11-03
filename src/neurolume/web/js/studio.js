@@ -141,10 +141,25 @@ let _selT=0;document.addEventListener('selectionchange',()=>{clearTimeout(_selT)
   $('lensStep').value=String(LENS.step||1);$('lensStep').onchange=()=>{LENS.step=+$('lensStep').value;saveLens();tlRender()};
   addEventListener('resize',tlRender)})();
 
+const BF={};   // gid → {busy} | {done} | {err}
+async function backfillLens(gid,frames){BF[gid]={busy:true};
+  try{const r=await api('/api/lens/backfill',{gid});const fr=frames.filter(f=>f.gid===gid),T=r.tokens||[],Lz=r.lens||[];
+    let j=0;for(const f of fr){const k=T.indexOf(ftok(f),j);if(k<0)continue;f.lens=Lz[k];j=k+1}   // 按 token 顺序对齐
+    BF[gid]={done:true}}
+  catch(e){BF[gid]={err:'无法补算逐层预测：'+(e.message||e)}}
+  tlRender()}
 // ---- 逐层预测表：选中的那个字前后若干列；每一行是一层（全部层或按密度抽取），最后一行是模型真正的输出
 function drawLens(){
   const v=$('lensv'),idx=SRC?srcIdx().filter(i=>SRC.frames[i].lens):[];
-  if(!idx.length){v.innerHTML=`<div class="empty">${!LIVE||SIM?'逐层预测需要连接真实模型。':'打开这个视图后再提问，就能看到每一层在“猜”下一个字。'}</div>`;return}
+  if(!idx.length){
+    // 生成时没开这个视图：请服务器对这段回答补算一次（不拖慢生成；再跑一遍前向，读出每一层的预测）
+    const gids=SRC?[...new Set(srcIdx().map(i=>SRC.frames[i].gid).filter(g=>g!=null))]:[];
+    if(LIVE&&!SIM&&gids.length){const st=gids.map(g=>BF[g]),err=st.find(x=>x&&x.err);
+      if(err){v.innerHTML=`<div class="empty">${escH(err.err)}</div>`;return}
+      if(!busy)gids.forEach(g=>{if(!BF[g])backfillLens(g,SRC.frames)});
+      const n=SRC.frames.filter(f=>gids.includes(f.gid)).length;
+      v.innerHTML=`<div class="empty">${busy?'回答生成完以后，会在这里补算逐层预测。':`正在补算这段回答的逐层预测（${n} 个字）：把回答再过一遍模型，读出每一层的猜测，不影响生成速度…`+(n>250?'回答越长越久，1000 字大约要 15 秒。':'')}</div>`;return}
+    v.innerHTML=`<div class="empty">${!LIVE||SIM?'逐层预测需要连接真实模型。':'打开这个视图后再提问，就能看到每一层在“猜”下一个字。'}</div>`;return}
   const W=Math.max(4,Math.floor((v.clientWidth-56)/64));let k=CUR>=0?idx.indexOf(CUR):idx.length-1;if(k<0)k=idx.length-1;
   const st=clamp(k-Math.floor(W*.6),0,Math.max(0,idx.length-W)),cols=idx.slice(st,st+W),F=SRC.frames;
   const all=[...new Set(cols.flatMap(i=>F[i].lens.map(r=>r[0])))].sort((a,b)=>a-b),last=all[all.length-1];

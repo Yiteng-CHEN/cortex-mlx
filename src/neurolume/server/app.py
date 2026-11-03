@@ -205,6 +205,18 @@ class State:
                 b.set_adapter_enabled(True)
         return {"prompt": prompt, "base": base, "tuned": tuned, "adapter": self.adapter}
 
+    def lens_backfill(self, gid) -> dict:
+        """Logit lens for an earlier answer that was generated with the lens view closed."""
+        b = self.backend
+        if b is None or not hasattr(b, "lens_backfill"):
+            raise RuntimeError("需要先加载一个真实模型")
+        try:
+            gid = int(gid)
+        except (TypeError, ValueError):
+            raise ValueError("缺少回答编号")
+        with self.lock:
+            return self.worker.call(b.lens_backfill, gid)
+
     def compare_samples(self, adapter_id: str, k: int = 5) -> list[dict]:
         """A few held-out questions (and the expected answers) from the adapter's validation split."""
         meta = next((a for a in self.trainer.adapters() if a["id"] == adapter_id), None)
@@ -568,6 +580,7 @@ def make_handler(state: State):
                 "/api/agent/undo": lambda: self._json(state.proposals.undo(str(body.get("id", "")))),
                 "/api/weights/generate": lambda: self._json(state.generate_weights()),
                 "/api/compare": lambda: self._json(state.compare(str(body.get("prompt", "")))),
+                "/api/lens/backfill": lambda: self._json(state.lens_backfill(body.get("gid"))),
                 "/api/export": lambda: self._json(state.export(str(body.get("kind", "")), str(body.get("adapter", "")),
                                                                str(body.get("name", "")))),
                 "/api/datagen/start": lambda: self._json(state.start_datagen(body.get("files") or [], str(body.get("mode", "qa")),
@@ -678,7 +691,7 @@ def make_handler(state: State):
                     yield from websearch.run(chat, msgs_in, state.searcher(), lang=lang)
                 else:
                     for c in chat(msgs_in):
-                        yield {"type": "text", "text": c["text"], "energy": c.get("energy"), "tps": c.get("tps"), "lens": c.get("lens"), "token": c.get("token"), "conf": c.get("conf"), "alts": c.get("alts")}
+                        yield {"type": "text", "text": c["text"], "energy": c.get("energy"), "tps": c.get("tps"), "lens": c.get("lens"), "token": c.get("token"), "conf": c.get("conf"), "alts": c.get("alts"), "gid": c.get("gid")}
 
             with state.lock:
                 if not body.get("stream"):
@@ -704,7 +717,7 @@ def make_handler(state: State):
                                 extra = {"energy": e.get("energy"), "tps": e.get("tps"), "simulated": simulated}
                                 if e.get("lens"):
                                     extra["lens"] = e["lens"]
-                                for k in ("token", "conf", "alts"):
+                                for k in ("token", "conf", "alts", "gid"):
                                     if e.get(k) is not None:
                                         extra[k] = e[k]
                                 seen_energy += 1 if e.get("energy") else 0
