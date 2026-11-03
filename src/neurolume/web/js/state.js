@@ -21,9 +21,8 @@ function heat(e){e=clamp(e,0,1);for(let i=1;i<STOPS.length;i++){if(e<=STOPS[i][0
 let LIVE=false, SIM=true, active=null, busy=false;
 let act=new Float32Array(NL);          // 平滑后的显示强度 0..1
 let lo=new Float32Array(NL).fill(1e9), hi=new Float32Array(NL).fill(-1e9);
-// 显示方式：增强（默认，放大差别）/ 原始（直接按测量值的比例）。测量值的定义见 docs/SIGNALS.md
-let SIGRAW=false;try{SIGRAW=localStorage.getItem('neurolume.sig')==='raw'}catch(_){}
-let gmax=1e-6, lastRaw=null;
+// 层图亮度 = 测量值经过放大差别处理（见下）；原始测量值在层图的悬停提示里。定义见 docs/SIGNALS.md
+let lastRaw=null;
 function pushEnergy(arr,simulated){    // 一个 token 的逐层活动 → 归一化到 0..1
   if(!arr||!arr.length)return;
   if(arr.length!==NL){ // 模型实际层数和界面当前层数不一致（例如切换模型后）：按真实层数重建
@@ -31,10 +30,8 @@ function pushEnergy(arr,simulated){    // 一个 token 的逐层活动 → 归�
     loadWeightsFor(active||'')}
   lastRaw=arr;
   let mn=1e9,mx=-1e9;for(let l=0;l<NL;l++){mn=Math.min(mn,arr[l]);mx=Math.max(mx,arr[l])}const span=mx-mn+1e-9;
-  gmax=Math.max(gmax*.995,mx);
   for(let l=0;l<NL;l++){const v=arr[l];
     if(simulated){act[l]=Math.max(act[l],clamp(v,0,1));continue}
-    if(SIGRAW){act[l]=Math.max(act[l],clamp(v/gmax,0,1));continue}           // 原始：与最近的最大值成正比
     lo[l]=Math.min(lo[l]*.999+v*.001,v);hi[l]=Math.max(hi[l]*.999+v*.001,v);   // 每层自己的运行范围
     const own=(v-lo[l])/(hi[l]-lo[l]+1e-6),rel=(v-mn)/span;                    // 相对自己 / 相对这一步里别的层
     const e=Math.pow(clamp(.45*own+.55*rel,0,1),2);                           // 平方：只让真正突出的层亮起来

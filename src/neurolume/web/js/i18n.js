@@ -76,8 +76,8 @@ const EN=[
 
 // ---- 工作室：信号、逐层预测、回放、对比、导出、数据生成、图解
 ["每生成一个字，看看每一层“如果在这里停下”会预测什么（logit lens，需要真实模型）","For every generated token, see what each layer would predict \"if the model stopped here\" (logit lens; needs a real model)"],
-["逐层预测","Logit lens"],["显示：增强","View: enhanced"],["显示：原始","View: raw"],
-["增强：放大层与层之间的差别，便于观察；原始：直接按测量值的比例显示","Enhanced: exaggerates differences between layers so they are easy to see. Raw: shows measured values in proportion"],
+["逐层预测","Logit lens"],
+
 ["这张图怎么看？","How to read this?"],["同一个问题，看原模型和训练后的回答有什么不同","Ask the same question and see how the original and the trained model differ"],["对比原模型","Compare with base"],
 ["每一列是一个生成的字，每一行是一层：格子里是这一层“如果在这里停下”最可能输出的字，颜色越深越有把握。最下面一行是模型真正输出的字。","Each column is a generated token and each row a layer: a cell shows the token that layer would most likely output \"if the model stopped here\" — darker means more confident. The bottom row is what the model actually output."],
 ["Q（查询）：这一层的每个字“想找什么信息”","Q (query): what each token in this layer is \"looking for\""],["输出：把注意力找到的信息写回这个字的表示里","Output: writes what attention found back into the token's representation"],
@@ -113,7 +113,7 @@ const EN=[
 ["资料较多，这次只处理了前 40 段。","Lots of material: only the first 40 pieces were processed this time."],["取消勾选不要的，可以直接修改文字。","Untick what you don't want; you can edit the text directly."],
 ["问题","Question"],["答案","Answer"],["数据集名字","Dataset name"],["保存为数据集并继续","Save as dataset and continue"],
 ["你在看什么","What you are looking at"],["模型由很多“层”叠起来，每生成一个字，信息都会从第一层流到最后一层。层图里每一列是一层，每一行是层里的一个矩阵；脑图里每一圈（或星云的每一段高度）也对应一层。","A model is a stack of layers; for every token, information flows from the first layer to the last. In the layer view each column is a layer and each row a matrix inside it; in the brain view each ring (or each height of the nebula) is one layer too."],
-["亮度测的是什么","What the brightness measures"],["每生成一个字，测量每一层对这个字的内部表示改了多少：改动的平均大小除以输入的平均大小。这是真实测量值，不代表“重要性”。“增强”显示会放大层与层之间的差别，“原始”显示直接按测量值的比例。","For each token we measure how much each layer changed its internal representation: the mean size of the change divided by the mean size of the input. It is a real measurement, not a claim about \"importance\". \"Enhanced\" exaggerates differences between layers; \"raw\" shows the values in proportion."],
+["亮度测的是什么","What the brightness measures"],["每生成一个字，测量每一层对这个字的内部表示改了多少：改动的平均大小除以输入的平均大小。这是真实测量值，不代表“重要性”。为了看得出变化，亮度把层与层之间的差别放大了；鼠标停在层图上可以看到这一层的原始测量值。","For each token we measure how much each layer changed its internal representation: the mean size of the change divided by the mean size of the input. It is a real measurement, not a claim about \"importance\". To make changes visible, brightness exaggerates the differences between layers; hover the layer map to see a layer's raw measured value."],
 ["注意力（Q、输出）","Attention (Q, output)"],["让当前的字去“看”前面的字：Q 决定要找什么信息，输出矩阵把找到的信息写回来。全注意力层每一步都能看到前面所有字。","Lets the current token look at earlier tokens: Q decides what to look for and the output matrix writes what was found back. Full-attention layers see every earlier token at each step."],
 ["线性注意力层","Linear-attention layers"],["Qwen3.6 里四层中有三层是线性注意力（DeltaNet）：不再逐个回看前面的字，而是维护一份不断更新的“记忆”，长文本时更快。层号旁边的 ◆ 表示全注意力层。","In Qwen3.6 three of every four layers use linear attention (DeltaNet): instead of looking back at each earlier token they keep a continuously updated \"memory\", which is faster on long text. A ◆ next to a layer number marks full attention."],
 ["MLP（门控、下投影）","MLP (gate, down-projection)"],["对每个字单独做的计算，很多“知识”存放在这里：门控决定打开哪些通道，下投影把结果写回去。","Per-token computation where much of the \"knowledge\" lives: the gate decides which channels open and the down-projection writes the result back."],

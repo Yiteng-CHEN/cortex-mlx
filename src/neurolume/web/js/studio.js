@@ -4,8 +4,6 @@ const escH=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;'
 const showTok=t=>{const s=String(t);if(s&&!s.trim()&&!/[\n\t]/.test(s))return '␠'.repeat(Math.min(3,s.length));return JSON.stringify(s).slice(1,-1).replace(/\\"/g,'"')||'∅'};   // 让空格、换行看得见
 
 // ---- 信号显示方式
-function setSig(raw){SIGRAW=raw;try{localStorage.setItem('neurolume.sig',raw?'raw':'enh')}catch(_){}$('btnSig').textContent=raw?'显示：原始':'显示：增强'}
-setSig(SIGRAW);$('btnSig').onclick=()=>{setSig(!SIGRAW);if(typeof tlPick==='function'){if(CUR>=0)tlPick(CUR);else tlRender()}};   // 切换后立刻重画时间轴和定格的层图
 
 // ---- 回答时间轴：整段回答的逐字 × 逐层活动热力图，可以拖动回看任意一个字；逐层预测表跟着它走
 // 数据来源：在对话里选中一段 AI 回答 → 只看选中的部分；没有选中 → 最近一次回答的全部内容
@@ -21,11 +19,11 @@ function srcIdx(){if(!SRC)return[];const a=SRC.a||0,b=SRC.b==null||SRC.b<0?SRC.f
 // 某个字在第几层“定下来”：从这一层起，后面每一层的预测都等于最终输出
 function lockLayer(f){if(!f.lens||!f.lens.length)return null;const rows=[...f.lens].sort((x,y)=>x[0]-y[0]),out=ftok(f);let L=null;
   for(let i=rows.length-1;i>=0;i--){if(rows[i][1]===out)L=rows[i][0];else break}return L}
-function normMatrix(idx){ // 每个字的逐层活动 → 0..1（和上面的“增强 / 原始”显示一致）
+function normMatrix(idx){ // 每个字的逐层活动 → 0..1（和层图的亮度处理一致）
   const F=SRC.frames,rows=idx.map(i=>F[i].e).filter(Boolean);if(!rows.length)return null;const n=rows[0].length;
   let gmx=1e-9;const mn=new Float32Array(n).fill(1e9),mx=new Float32Array(n).fill(-1e9);
   for(const r of rows)for(let l=0;l<n;l++){gmx=Math.max(gmx,r[l]);mn[l]=Math.min(mn[l],r[l]);mx[l]=Math.max(mx[l],r[l])}
-  return idx.map(i=>{const r=F[i].e;if(!r)return null;if(SIGRAW)return r.map(v=>v/gmx);
+  return idx.map(i=>{const r=F[i].e;if(!r)return null;
     let a=1e9,b=-1e9;for(const v of r){a=Math.min(a,v);b=Math.max(b,v)}
     return r.map((v,l)=>Math.pow(clamp(.45*(v-mn[l])/(mx[l]-mn[l]+1e-9)+.55*(v-a)/(b-a+1e-9),0,1),2))})}
 function tlShow(){const has=SRC&&SRC.frames.length&&(mode==='infer'||mode==='lens');$('tl').hidden=!has;$('lensCtl').hidden=mode!=='lens';return has}
@@ -56,12 +54,11 @@ function tlMetrics(idx){
   const E=idx.map(i=>F[i].e);const f0=E.find(Boolean);if(!f0)return null;const n=f0.length;
   const b1=Math.round(n/3),b2=Math.round(2*n/3),band=l=>l<b1?0:l<b2?1:2;
   const med=[...Array(n)].map((_,l)=>Math.max(1e-9,pct(E.map(r=>r&&r[l]),.5)));
-  const gmax=Math.max(1e-9,...E.filter(Boolean).flat());
   const raw=E.map(r=>{if(!r)return null;const s=[0,0,0],k=[0,0,0];
-    for(let l=0;l<n;l++){const b=band(l);s[b]+=SIGRAW?r[l]/gmax:r[l]/med[l];k[b]++}
+    for(let l=0;l<n;l++){const b=band(l);s[b]+=r[l]/med[l];k[b]++}
     const bm=s.map((v,i)=>v/Math.max(1,k[i])),eff=(s[0]+s[1]+s[2])/n,dom=bm.indexOf(Math.max(...bm));return {eff,bm,dom}});
-  const effs=raw.map(r=>r&&r.eff),lo=SIGRAW?0:pct(effs,.05),hi=Math.max(lo+1e-9,SIGRAW?Math.max(...effs.filter(x=>x!=null)):pct(effs,.97));
-  return {kind:'infer',base:SIGRAW?null:Math.sqrt(clamp((1-lo)/(hi-lo),0,1)),bands:[[0,b1-1],[b1,b2-1],[b2,n-1]],
+  const effs=raw.map(r=>r&&r.eff),lo=pct(effs,.05),hi=Math.max(lo+1e-9,pct(effs,.97));
+  return {kind:'infer',base:Math.sqrt(clamp((1-lo)/(hi-lo),0,1)),bands:[[0,b1-1],[b1,b2-1],[b2,n-1]],
     rows:raw.map(r=>r&&{v:Math.max(.04,Math.sqrt(clamp((r.eff-lo)/(hi-lo),0,1))),c:BANDC[r.dom],dom:r.dom,eff:r.eff})}}
 let TLM=null;
 // 备选字：模型生成这个字时概率最高的几个候选（不含它最终选的那个）
@@ -252,7 +249,7 @@ function showGen(st){
 // ---- 这张图怎么看
 const LEARN=[
  ['你在看什么','模型由很多“层”叠起来，每生成一个字，信息都会从第一层流到最后一层。层图里每一列是一层，每一行是层里的一个矩阵；脑图里每一圈（或星云的每一段高度）也对应一层。'],
- ['亮度测的是什么','每生成一个字，测量每一层对这个字的内部表示改了多少：改动的平均大小除以输入的平均大小。这是真实测量值，不代表“重要性”。“增强”显示会放大层与层之间的差别，“原始”显示直接按测量值的比例。'],
+ ['亮度测的是什么','每生成一个字，测量每一层对这个字的内部表示改了多少：改动的平均大小除以输入的平均大小。这是真实测量值，不代表“重要性”。为了看得出变化，亮度把层与层之间的差别放大了；鼠标停在层图上可以看到这一层的原始测量值。'],
  ['注意力（Q、输出）','让当前的字去“看”前面的字：Q 决定要找什么信息，输出矩阵把找到的信息写回来。全注意力层每一步都能看到前面所有字。'],
  ['线性注意力层','Qwen3.6 里四层中有三层是线性注意力（DeltaNet）：不再逐个回看前面的字，而是维护一份不断更新的“记忆”，长文本时更快。层号旁边的 ◆ 表示全注意力层。'],
  ['MLP（门控、下投影）','对每个字单独做的计算，很多“知识”存放在这里：门控决定打开哪些通道，下投影把结果写回去。'],

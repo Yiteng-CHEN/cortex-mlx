@@ -46,7 +46,7 @@ Everything labelled as the model's activity comes from the model; simulated data
 |---|---|
 | Layer count and types | Read from the loaded model |
 | Weight values on hover | Exact strided sample of the dequantized weights |
-| Per-layer activity | `mean\|out − in\| / mean\|in\|` of each block at the token being generated (switch between *enhanced* and *raw* display) |
+| Per-layer activity | `mean\|out − in\| / mean\|in\|` of each block at the token being generated; raw value on hover |
 | Logit lens | The model's own final norm + output head applied to intermediate layers |
 | ΔW, per-layer change | Computed from the adapter (`scale · B·A`) |
 | Validation loss before → after | mlx-lm's evaluation before the first update and at the end |

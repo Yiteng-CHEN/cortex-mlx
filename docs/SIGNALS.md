@@ -15,12 +15,14 @@ activity[l] = mean(|out_l - in_l|) / mean(|in_l|)
 — how much block *l* changed the residual stream relative to its size. It is a real measurement from the running
 model. It is **not** a claim that a layer is "important" for the answer.
 
-**Display modes** (button "View: enhanced / raw"):
+**Display**: brightness mixes each layer's value relative to *its own* recent range with its value relative to the
+other layers in the same step, then squares it. This makes changes visible (otherwise the first and last layers
+dominate) but exaggerates differences. The raw measured value of a layer is shown in the layer-map tooltip.
+(An earlier "enhanced / raw" toggle was removed: it only affected the live view and looked like it did nothing.)
 
-- **Raw** — `activity / recent maximum`, linear. Proportions between layers are preserved.
-- **Enhanced** (default) — mixes each layer's value relative to *its own* recent range with its value relative to the
-  other layers in the same step, then squares it. This makes changes visible (otherwise the first and last layers
-  dominate) but exaggerates differences. Use *raw* when you want to compare magnitudes.
+**Answer replay bars**: on real hardware this activity varied only about ±10 % between tokens of one answer, so it is
+not used to compare tokens. The replay bars use the probability the model gave the token it produced (from the
+logprobs mlx-lm already computes) and list the top alternatives.
 
 Hover a tile to see the measured value.
 
@@ -68,8 +70,8 @@ the chat). Clicking or dragging pins the brain and layer views to that token.
 ## 中文
 
 - **逐层活动**：每生成一个字，在每一层的最后一个位置测量 `mean(|输出-输入|) / mean(|输入|)`，即这一层把内部表示改了多少。这是真实测量值，不代表这一层“重要”。
-  - “原始”显示：测量值除以最近的最大值，按比例显示；
-  - “增强”显示（默认）：结合每层相对自己的变化和相对其他层的差别再平方，便于看出变化，但会放大差异。
+  - 亮度：结合每层相对自己的变化和相对其他层的差别再平方，便于看出变化，但会放大差异；原始测量值在层图的悬停提示里。（原来的“增强 / 原始”开关已去掉：它只影响实时画面，看起来像没反应。）
+  - 实测同一段回答里不同字的逐层活动只差约 ±10%，所以不用它来比较字；回答回放的柱子用的是模型给它输出的那个字的概率（mlx-lm 本来就算好的 logprobs），并列出概率最高的几个备选字。
 - **脑图（球体 / 星云）**：每一圈 / 每段高度对应一层，左侧刻度准确。金色放电只在模型生成或训练时出现，频率跟随显卡/内存占用和逐层活动；**放电在球面上的走向是为了美观生成的，不是测量值**。
 - **逐层预测（logit lens）**：把每一层的中间结果送进模型自己的最终归一化和输出层（一次批量计算），显示最可能的字和概率；“定下来”一行是从第几层起每一层都猜中最终输出。前面的层常出现乱码，是正常现象。每个字的数据对应“产生这个字的那一次计算”（mlx-lm 会提前算下一个字，探针已按此对齐）。只在打开该视图时计算。
 - **回答时间轴**：整段回答（或在对话里选中的部分）的“字 × 层”活动热力图，点击或拖动可以把脑图和层图定格在任意一个字。
