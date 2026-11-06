@@ -1,0 +1,32 @@
+name: Online demo
+# Publishes the web UI to GitHub Pages. With no local server it runs in demo mode and replays a real
+# recorded session (src/neurolume/web/demo/), clearly labelled; nothing runs a model here.
+on:
+  push:
+    branches: [main]
+    paths: ["src/neurolume/web/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/neurolume/web
+      - id: deployment
+        uses: actions/deploy-pages@v4

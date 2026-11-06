@@ -159,7 +159,7 @@ function drawLens(){
       if(!busy)gids.forEach(g=>{if(!BF[g])backfillLens(g,SRC.frames)});
       const n=SRC.frames.filter(f=>gids.includes(f.gid)).length;
       v.innerHTML=`<div class="empty">${busy?'回答生成完以后，会在这里补算逐层预测。':`正在补算这段回答的逐层预测（${n} 个字）：把回答再过一遍模型，读出每一层的猜测，不影响生成速度…`+(n>250?'回答越长越久，1000 字大约要 15 秒。':'')}</div>`;return}
-    v.innerHTML=`<div class="empty">${!LIVE||SIM?'逐层预测需要连接真实模型。':'打开这个视图后再提问，就能看到每一层在“猜”下一个字。'}</div>`;return}
+    v.innerHTML=`<div class="empty">${DEMO?'点“发送”回放一次真实录制，就能看到每一层在“猜”下一个字。':!LIVE||SIM?'逐层预测需要连接真实模型。':'打开这个视图后再提问，就能看到每一层在“猜”下一个字。'}</div>`;return}
   const W=Math.max(4,Math.floor((v.clientWidth-56)/64));let k=CUR>=0?idx.indexOf(CUR):idx.length-1;if(k<0)k=idx.length-1;
   const st=clamp(k-Math.floor(W*.6),0,Math.max(0,idx.length-W)),cols=idx.slice(st,st+W),F=SRC.frames;
   const all=[...new Set(cols.flatMap(i=>F[i].lens.map(r=>r[0])))].sort((a,b)=>a-b),last=all[all.length-1];
@@ -177,6 +177,8 @@ function drawLens(){
 // ---- 训练结果回看：“训练”视图里随时查看任意一个适配器真实改动了哪些层
 let DELTA_ID=null;
 async function reviewDelta(force){
+  if(!LIVE&&DEMO_DELTA){const a=DEMO_DELTA.adapter;$('trainbars').hidden=mode!=='train';if(DELTA_ID!=='demo'){applyDelta(DEMO_DELTA.delta);DELTA_ID='demo'}   // 在线演示：一个真实训练出的适配器
+    $('trainbarsLab').textContent=`在线演示：一个真实训练出的适配器（${a.iters} 步）· 验证损失 ${a.val_first.toFixed(2)} → ${a.val_loss.toFixed(2)} · 每根柱子是一层被训练改变的总幅度（ΔW 大小），悬停层图看具体位置和数值`;drawLayerBars($('trainbarsBars'));return}
   if(!LIVE||trainRunning)return;let list=[];try{list=(await api('/api/train/adapters')).adapters.filter(a=>!active||a.model===active)}catch(_){}
   const bar=$('trainbars');bar.hidden=mode!=='train';
   if(!list.length){$('trainbarsLab').textContent='还没有训练过的适配器。点“去训练…”用你的数据训练一次，完成后这里显示真实的各层改变幅度，并且可以随时回来查看。';$('trainbarsBars').innerHTML='';return}

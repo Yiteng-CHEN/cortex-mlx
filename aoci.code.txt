@@ -10,7 +10,7 @@ CONTRIBUTING.md[SG4T]: F:贡献指南:项目布局、运行方式、基本规则
 LICENSE[SG3T]: F:MIT许可证,版权方Neurolume contributors | R:code:pyproject.toml | A:- | S:-
 Neurolume.command[OU6T]: F:macOS双击启动器:补全PATH、uv sync --extra mlx后执行neurolume serve --open | R:code:src/neurolume/cli.py,code:pyproject.toml | A:- | S:缺少uv时只提示brew install uv并等待按键,不自动安装;异常退出时提示端口8765可能已被占用
 PLAN.md[SB6S]: F:开发计划与里程碑状态(M0到M6、风险、下一步) | R:code:docs/PROJECT_BRIEF.md,code:docs/DECISIONS.md | A:- | S:每个里程碑满足验收标准后必须停下来演示,经确认才进入下一个
-README.md[SU6S]: F:英文项目说明:功能、界面导览、FAQ、快速开始、实测数据、限制与代码结构 | R:code:README.zh-CN.md,code:docs/SIGNALS.md | A:- | S:-
+README.md[SU6S]: F:英文项目说明:功能、在线演示、界面导览、FAQ、快速开始、实测数据、限制与代码结构 | R:code:README.zh-CN.md,code:docs/SIGNALS.md,code:.github/workflows/pages.yml | A:- | S:-
 README.zh-CN.md[SU6S]: F:README的中文版,章节与英文版一一对应 | R:code:README.md | A:- | S:-
 pyproject.toml[FV7T]: F:包neurolume 0.2.0的打包配置,核心零依赖,mlx额外依赖仅darwin,入口neurolume.cli:main | R:code:src/neurolume/cli.py,code:.python-version | A:- | S:核心必须保持纯标准库(D9);mlx>=0.32.4;web与defaults.toml作为package-data打包;与src/neurolume/__init__.py的__version__不同步
 uv.lock[FV4L]: F:uv生成的依赖锁定文件,要求Python>=3.11 | R:code:pyproject.toml | A:- | S:由uv自动生成,不要手改
@@ -24,6 +24,7 @@ pull_request_template.md[OQ3T]: F:PR模板,要求说明改动原因并勾选unit
 
 ===/Users/eaton/Documents/Neurolume/.github/workflows/===
 ci.yml[OQ6T]: F:在ubuntu与macos上用Python 3.12跑纯标准库unittest,并对web/js逐个做node语法检查 | R:code:pyproject.toml | A:- | S:测试靠PYTHONPATH=src运行且不需要模型或mlx,CI环境不能依赖Apple芯片
+pages.yml[OV5T]: F:main上的web目录或本工作流变更时,把src/neurolume/web发布到GitHub Pages作为在线演示 | R:code:src/neurolume/web/index.html,code:src/neurolume/web/demo/session.json | A:- | S:发布的页面没有本地服务、不运行模型,只回放录制的真实会话
 
 ===/Users/eaton/Documents/Neurolume/config/===
 local.example.toml[FC4T]: F:config/local.toml的示例:数据目录与评测用repos(path/setup/test/timeout/env) | R:code:src/neurolume/config.py,code:src/neurolume/defaults.toml | A:- | S:test命令中{tests}与{python}会被替换;真正的local.toml被git忽略
@@ -38,6 +39,7 @@ SIGNALS.md[SO6T]: F:说明界面每个信号如何测得:逐层活动、logit le
 fixture_repo.py[XQ3T]: F:命令行包装,生成演示用合成git仓库并打印可粘贴的config/local.toml片段 | R:code:src/neurolume/devtools/fixture_repo.py | A:fixture_repo.py <path> | S:-
 m0-bench.sh[XA4T]: F:M0基准脚本:对候选模型依次做内存检查、inspect和dev集评测,日志写入数据目录 | R:code:src/neurolume/cli.py,code:src/neurolume/models/inspect.py | A:m0-bench.sh [候选...] | S:仅限Apple芯片;首次运行会下载约44GB权重;每步独立进程以保证同时只有一个模型在内存
 move-models.sh[XD4T]: F:把已下载的两个M0候选模型从HF缓存移到项目models/目录 | R:code:src/neurolume/config.py | A:move-models.sh [--apply] | S:默认dry-run,加--apply才真正移动;blobs里的符号链接要先换成真实文件再搬;目标已存在则跳过不覆盖
+record_demo.py[XU3T]: F:用无头Chromium和playwright从在线演示录制docs/media/demo.gif的帧 | R:code:src/neurolume/web/index.html,code:src/neurolume/web/demo/session.json | A:record_demo.py <语言> | S:需rec/three.min.js(r128)、site/neurolume与playwright
 
 ===/Users/eaton/Documents/Neurolume/src/neurolume/===
 __init__.py[RG2T]: F:包入口,仅声明__version__ | R:code:pyproject.toml | A:__version__ | S:值为0.1.0,与pyproject.toml的0.2.0不一致
@@ -102,11 +104,16 @@ app.css[FU4M]: F:界面样式:深浅色变量、左上3D扫描与右侧聊天并
 index.html[EU6T]: F:单页界面入口:大脑画布、层图、聊天栏与模型库/训练向导弹窗,按固定顺序加载脚本 | R:code:src/neurolume/web/js/i18n.js,code:src/neurolume/web/js/main.js,code:src/neurolume/web/css/app.css | A:- | S:脚本是普通<script>共享全局变量,顺序为three.js(CDN)→i18n→state→holo→net→chat→panels→studio→main,调换会导致引用未定义
 
 ===/Users/eaton/Documents/Neurolume/src/neurolume/web/js/===
-chat.js[AU6S]: F:聊天栏:发送消息、读取SSE流式回答、极简代码块渲染,以及Agent/知识库/联网三个开关 | R:code:src/neurolume/server/app.py,code:src/neurolume/web/js/net.js | A:- | S:三个开关存在localStorage(neurolume.agent/books/web);回答文本先转义再渲染以防XSS
+chat.js[AU6M]: F:聊天栏:发送消息、读取SSE流式回答、极简代码块渲染,以及Agent/知识库/联网三个开关;没有本地服务时回放录制的真实会话作为在线演示 | R:code:src/neurolume/server/app.py,code:src/neurolume/web/js/net.js,code:src/neurolume/web/demo/session.json | A:- | S:三个开关存在localStorage(neurolume.agent/books/web);回答文本先转义再渲染以防XSS;演示模式不运行模型,按录制速度回放并必须标明是录制
 holo.js[AU6S]: F:three.js绘制的3D全息神经网络:每层一圈节点,相邻层反向旋转,颜色表示该层实时活动,带星云/球体形态 | R:code:src/neurolume/web/js/state.js,code:src/neurolume/web/index.html | A:- | S:一圈节点必须等于模型真实层数;依赖CDN加载的three.js r128
-i18n.js[LL5M]: F:中英文切换:按短语表替换界面文字(支持带数字的动态文字),并定义$取元素助手 | R:code:src/neurolume/web/js/state.js,code:src/neurolume/web/index.html | A:$,EN | S:聊天内容(提问与回答)不翻译;必须最先加载因为其他脚本都用$;语言设置只读localStorage的neurolume.lang
+i18n.js[LL5M]: F:中英文切换:按短语表替换界面文字(支持带数字的动态文字,含在线演示的提示),并定义$取元素助手 | R:code:src/neurolume/web/js/state.js,code:src/neurolume/web/index.html | A:$,EN | S:聊天内容(提问与回答)不翻译;必须最先加载因为其他脚本都用$;语言设置只读localStorage的neurolume.lang
 main.js[AU5T]: F:渲染主循环:检测深浅色、按半衰期约0.4秒衰减各层活动并驱动大脑与层图重绘 | R:code:src/neurolume/web/js/holo.js,code:src/neurolume/web/js/net.js,code:src/neurolume/web/js/state.js | A:- | S:衰减与帧率无关;尊重prefers-reduced-motion
-net.js[AU5T]: F:神经网络层图画布:每层四个矩阵点阵、层间连线与脉冲,支持推理/训练等视图模式 | R:code:src/neurolume/web/js/state.js,code:docs/SIGNALS.md | A:buildNet | S:连线亮度为相邻层活动的几何平均;每束里的细线与移动圆点只是示意
+net.js[AU5T]: F:神经网络层图画布:每层四个矩阵点阵、层间连线与脉冲,支持推理/训练等视图模式;在线演示回放时按真实测量值显示而不标模拟 | R:code:src/neurolume/web/js/state.js,code:docs/SIGNALS.md | A:buildNet | S:连线亮度为相邻层活动的几何平均;每束里的细线与移动圆点只是示意
 panels.js[AU6S]: F:模型库与训练向导弹窗,通过api()调用本地服务并轮询下载与训练进度 | R:code:src/neurolume/server/app.py,code:src/neurolume/server/library.py,code:src/neurolume/server/training.py | A:api,openOv,closeOv | S:需要本地服务在运行;关闭弹窗必须清除轮询定时器
 state.js[RU5T]: F:前端共享状态:层数NL、采样格G、已知模型结构KNOWN、四个矩阵MATS与主题变量读取 | R:code:src/neurolume/web/js/holo.js,code:src/neurolume/web/js/net.js | A:KNOWN,MATS | S:KNOWN是来自neurolume models inspect的实测结构,Qwen3.6为每4层里3层线性注意力+1层全注意力
-studio.js[AU6M]: F:工作室面板:回答时间轴热力图与逐层logit lens预测、效果对比、导出、训练数据生成、训练结果回看 | R:code:src/neurolume/server/app.py,code:src/neurolume/web/js/chat.js,code:src/neurolume/web/js/panels.js | A:- | S:拖动时间轴回看某个字时逐层预测表跟随;没开实时lens的回答需要按需回填(重跑一次模型)
+studio.js[AU6M]: F:工作室面板:回答时间轴热力图与逐层logit lens预测、效果对比、导出、训练数据生成、训练结果回看,在线演示下用录制的真实适配器变化展示训练视图 | R:code:src/neurolume/server/app.py,code:src/neurolume/web/js/chat.js,code:src/neurolume/web/js/panels.js,code:src/neurolume/web/demo/delta.json | A:- | S:拖动时间轴回看某个字时逐层预测表跟随;没开实时lens的回答需要按需回填(重跑一次模型)
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/web/demo/===
+delta.json[FA4T]: F:在线演示用的真实训练结果:一个训练出的风格适配器的元信息与逐层权重变化采样 | R:code:src/neurolume/web/js/studio.js | A:- | S:数据是2026-11-03在真机录制的快照,不要手改
+session.json[FA5T]: F:在线演示回放的真实录制会话:问题、答案、机器信息、逐token的逐层活动、logit lens与把握 | R:code:src/neurolume/web/js/chat.js,code:src/neurolume/web/js/studio.js | A:- | S:录自Devstral Small 2基于M5 Max;演示模式下无论用户输入什么都会把问题换成录制时的那句
+weights-devstral-small-2.json[FA5T]: F:在线演示用的Devstral Small 2权重采样图:每层四个矩阵的形状、标准差与12x12采样值 | R:code:src/neurolume/tools/dump_weights.py,code:src/neurolume/web/js/studio.js | A:- | S:由dump_weights.py从真实反量化权重采样生成,不要手改

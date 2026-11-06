@@ -9,16 +9,16 @@ Fine-tune an LLM on your Mac in a few clicks — and see, layer by layer, what t
 ![Platform](https://img.shields.io/badge/platform-Apple%20Silicon-black)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-English · [简体中文](README.zh-CN.md)
+**[▶ Try the online demo](https://yiteng-chen.github.io/neurolume/)** (no install; replays a real recorded run) · English · [简体中文](README.zh-CN.md)
 
 </div>
 
-<p align="center"><img src="docs/media/demo.gif" width="800" alt="Neurolume demo: the nebula brain discharges while Devstral Small 2 answers; the logit lens shows each layer's guess for the next token and the bars show live per-layer activity"></p>
-<p align="center"><sub>Real run, not a mock-up: Devstral Small 2 on an M5 Max, recorded from the app's own canvases. Logit lens and per-layer activity are measured from the model (shown 1.25× speed) · <a href="docs/media/demo.mp4">full-quality video</a>.</sub></p>
+<p align="center"><img src="docs/media/demo.gif" width="860" alt="Neurolume: Devstral Small 2 answers while the layer map lights up; the answer replay shows how confident the model was in each token and what else it considered; the logit lens shows every layer's guess; the Train view shows a real adapter's weight change"></p>
+<p align="center"><sub>Real data, not a mock-up: one answer from Devstral Small 2 on an M5 Max (per-layer activity, logit lens, per-token confidence) and a real adapter's ΔW, replayed in the <a href="https://yiteng-chen.github.io/neurolume/">online demo</a> · <a href="docs/media/demo.mp4">video</a></sub></p>
 
 Most fine-tuning tools stop at "training finished, loss = 1.23". Most interpretability tools show a model you cannot change. Neurolume puts both in one local app: **you train the model, and you watch its insides while you do it.**
 
-> **Status: early alpha.** Server, UI and tooling are unit-tested (100+ tests, no GPU needed). Model loading and LoRA training were benchmarked on one machine (MacBook Pro M5 Max, 128 GB). Verified on that Mac with Devstral Small 2: live layer probe, logit lens (all layers), guided LoRA training (36 steps, 15 GB peak), before/after comparison, MLX export and training-data generation. Ollama export is not hardware-tested yet. Reports from other machines are very welcome.
+> **Status: early alpha.** Server, UI and tooling are unit-tested (110+ tests, no GPU needed). Everything below runs on one machine so far (MacBook Pro M5 Max, 128 GB). Verified there with Devstral Small 2 and Qwen3.6-27B: live layer probe, logit lens (live, and computed afterwards for answers generated without it), per-token confidence, guided LoRA training (Devstral: 36 steps, 15 GB peak, validation loss 4.45 → 1.06), before/after comparison, MLX export and training-data generation. Ollama export is not hardware-tested yet. Reports from other machines are very welcome.
 
 ## What you can do
 
@@ -31,7 +31,7 @@ Most fine-tuning tools stop at "training finished, loss = 1.23". Most interpreta
 **See inside the model**
 - **Live brain view.** A 3D sphere or nebula with one band per real layer (Devstral Small 2: 40; Qwen3.6-27B: 64 with its linear/full-attention pattern). It discharges only while the model is generating or training.
 - **Layer map.** Four weight matrices per layer with real weight values on hover, per-layer activity while generating, and the adapter's real ΔW while training.
-- **Logit lens.** For each generated token, what every layer would predict "if the model stopped here" — watch the answer form layer by layer.
+- **Logit lens.** For each generated token, what every layer would predict "if the model stopped here" — watch the answer form layer by layer. Generated an answer with the view closed? Open it afterwards and it is computed for that answer in one extra pass, so normal chatting stays at full speed.
 - **Answer replay.** One bar per token showing how confident the model was; the answer text is tinted the same way and hovering shows the alternatives it considered. Click any token and the brain and layer views go back to that moment.
 - **"How to read this"** explanations for attention, MLP, linear attention, LoRA and the logit lens, in English and Chinese.
 

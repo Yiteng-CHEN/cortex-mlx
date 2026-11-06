@@ -9,16 +9,16 @@
 ![Platform](https://img.shields.io/badge/platform-Apple%20Silicon-black)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-[English](README.md) · 简体中文
+**[▶ 在线试用](https://yiteng-chen.github.io/neurolume/)**（不用安装，回放一次真实录制）· [English](README.md) · 简体中文
 
 </div>
 
-<p align="center"><img src="docs/media/demo.gif" width="800" alt="Neurolume 演示：Devstral Small 2 回答时星云大脑放电，逐层预测显示每层对下一个字的猜测，柱状图是实时逐层活动"></p>
-<p align="center"><sub>真实运行录屏，不是效果图：M5 Max 上的 Devstral Small 2，直接从应用自己的画布录制。逐层预测和逐层活动都来自模型的真实测量（1.25 倍速）· <a href="docs/media/demo.mp4">高清视频</a>。</sub></p>
+<p align="center"><img src="docs/media/demo.gif" width="860" alt="Neurolume：Devstral Small 2 回答时层图发光；回答回放显示模型对每个字的把握和备选字；逐层预测显示每一层的猜测；训练视图显示真实适配器的权重变化"></p>
+<p align="center"><sub>真实数据，不是效果图：Devstral Small 2 在 M5 Max 上的一次真实回答（逐层活动、逐层预测、每个字的把握）和一个真实适配器的 ΔW，在<a href="https://yiteng-chen.github.io/neurolume/">在线试用</a>页里回放 · <a href="docs/media/demo.mp4">视频</a></sub></p>
 
 大多数微调工具做到“训练完成，loss = 1.23”就结束了；大多数可解释性工具展示的模型你又改不了。Neurolume 把两件事放进一个本地应用：**你训练模型，同时看着它的内部发生了什么。**
 
-> **状态：早期 alpha。** 服务、界面和工具链有 100 多个单元测试（不需要显卡）。模型加载和 LoRA 训练在一台机器上实测过（MacBook Pro M5 Max，128GB）。已在这台 Mac 上用 Devstral Small 2 真机验证：逐层探针、逐层预测（全部层）、引导式 LoRA 训练（36 步，峰值内存 15GB）、训练前后对比、导出 MLX 模型、用资料生成训练数据。导出到 Ollama 还没有真机测试。欢迎其他机器的反馈。
+> **状态：早期 alpha。** 服务、界面和工具链有 110 多个单元测试（不需要显卡）。目前所有功能都在一台机器上实测过（MacBook Pro M5 Max，128GB），用 Devstral Small 2 和 Qwen3.6-27B 验证了：逐层探针、逐层预测（边生成边算，以及事后补算）、每个字的把握、引导式 LoRA 训练（Devstral：36 步，峰值内存 15GB，验证集损失 4.45 → 1.06）、训练前后对比、导出 MLX 模型、用资料生成训练数据。导出到 Ollama 还没有真机测试。欢迎其他机器的反馈。
 
 ## 能做什么
 
@@ -31,7 +31,7 @@
 **看见模型内部**
 - **实时脑图**：球体或星云，每一段对应模型的一层（Devstral Small 2 是 40 层，Qwen3.6-27B 是 64 层并标出线性/全注意力）。只有模型在生成或训练时才会放电。
 - **层图**：每层四个权重矩阵，悬停显示真实权重；生成时显示逐层活动，训练时显示适配器真实的 ΔW。
-- **逐层预测（logit lens）**：每生成一个字，看每一层“如果在这里停下”会输出什么，答案是在第几层成形的一目了然。
+- **逐层预测（logit lens）**：每生成一个字，看每一层“如果在这里停下”会输出什么，答案是在第几层成形的一目了然。生成时没打开这个视图也没关系，之后打开会对那段回答补算一次，平时聊天不会变慢。
 - **回答回放**：每个字一根柱子，显示模型对它有多大把握；原文按同样颜色标出犹豫过的字，悬停能看到它还考虑过哪些字。点任意一个字，脑图和层图回到生成那个字的时刻。
 - **“这张图怎么看？”**：中英文讲解注意力、MLP、线性注意力、LoRA 和逐层预测。
 

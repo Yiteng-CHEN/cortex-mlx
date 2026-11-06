@@ -255,19 +255,26 @@ class ConfidenceTest(unittest.TestCase):
 
 class ProbeCaptureTest(unittest.TestCase):
     def test_keeps_answer_positions_across_prefill_chunks(self):
-        import numpy as np
         from neurolume.telemetry.probe import LayerProbe
+
+        class Seq:                                    # minimal [1, T, 1] array: .shape and [0, a:b, :]
+            def __init__(self, vals):
+                self.v = list(vals)
+                self.shape = (1, len(self.v), 1)
+
+            def __getitem__(self, k):
+                return self.v[k[1]]
+
         blocks = [lambda x: x, lambda x: x]
         p = LayerProbe(blocks)
         p.enabled = True
         p.capture_range(3, 7)                         # positions 3..6 of a 9-token sequence
-        seq = np.arange(9, dtype=np.float32).reshape(1, 9, 1)
         for s in range(0, 9, 4):                     # chunked prefill: 4 + 4 + 1
-            chunk = seq[:, s:s + 4, :]
+            chunk = Seq(range(s, min(9, s + 4)))
             for b in blocks:
                 chunk = b(chunk)
         h = p.end_capture()
-        self.assertEqual([float(v) for part in h[1] for v in part[:, 0]], [3.0, 4.0, 5.0, 6.0])
+        self.assertEqual([v for part in h[1] for v in part], [3, 4, 5, 6])
         self.assertIsNone(p.capture)
 
 
@@ -322,3 +329,20 @@ class ChatImportTest(unittest.TestCase):
         self.assertIn(("修一下这个 bug", "修好了：少了一个判断"), pairs)   # final answer only, tool turns skipped
         self.assertEqual(len(pairs), 4)
         self.assertTrue(any("Claude Code" in w for w in p["warnings"]))
+
+
+class DemoDataTest(unittest.TestCase):
+    def test_online_demo_recording_is_complete(self):
+        web = Path(__file__).resolve().parents[1] / "src" / "neurolume" / "web" / "demo"
+        s = json.loads((web / "session.json").read_text(encoding="utf-8"))
+        self.assertTrue(s["question"] and s["frames"])
+        n = s["layers"]
+        for f in s["frames"]:
+            self.assertEqual(len(f["e"]), n)
+            self.assertEqual(len(f["lens"]), n)
+            self.assertIsNotNone(f["p"])
+        self.assertEqual("".join(f["t"] for f in s["frames"]).strip(), s["answer"].strip())
+        d = json.loads((web / "delta.json").read_text(encoding="utf-8"))
+        self.assertTrue(d["delta"]["layers"])
+        w = json.loads((web / "weights-devstral-small-2.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(w["layers"]), n)

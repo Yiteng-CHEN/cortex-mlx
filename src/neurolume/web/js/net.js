@@ -53,7 +53,7 @@ net.addEventListener('pointermove',ev=>{
   if(l<0||l>=NL||k<0||k>3||px<0||py<0||c<0||c>=G||r<0||r>=G){hov=null;tip.hidden=true;return}
   hov={l,k,r,c};const w=W[l][k],i=r*G+c,sh=w.shape;
   let t=`<b>第 ${l} 层 · ${MATS[k].name}</b><br>位置：行 ${pick(sh[0],r)} / ${sh[0]}，列 ${pick(sh[1],c)} / ${sh[1]}<br>权重：${w.v[i].toFixed(5)}`+(realWeights?'':'（示例）')+`<br>该矩阵标准差：${w.std.toFixed(4)}`;
-  if(mode==='infer')t+=`<br>该层当前活动：${act[l].toFixed(2)}${SIM?'（模拟）':''}`+(lastRaw&&!SIM&&lastRaw[l]!=null?`<br>测量值：${lastRaw[l].toFixed(4)}`:'');
+  if(mode==='infer')t+=`<br>该层当前活动：${act[l].toFixed(2)}${SIM&&!DEMO?'（模拟）':''}`+(lastRaw&&(!SIM||DEMO)&&lastRaw[l]!=null?`<br>测量值：${lastRaw[l].toFixed(4)}`:'');
   t+=`<br><span style="color:var(--mute)">${MAT_EXPL[k]}</span>`;
   if(mode==='train')t+=deltaReal?`<br>ΔW：${dW[l][k][i]>=0?'+':''}${dW[l][k][i].toExponential(2)}（真实，来自适配器）`:'<br>ΔW：还没有训练结果';
   tip.innerHTML=t;tip.hidden=false;
@@ -66,7 +66,7 @@ function setMode(){document.querySelectorAll('#modes button').forEach(b=>b.setAt
 const MAT_EXPL=['Q（查询）：这一层的每个字“想找什么信息”','输出：把注意力找到的信息写回这个字的表示里','门控：决定 MLP 里哪些“知识通道”打开','下投影：把 MLP 算出的结果压回原来的维度，写回去'];
 function keyText(){
   $('key').innerHTML={
-   infer:`<span>低<i class="grad"></i>高：该层这一步对当前 token 的改动幅度${SIM?'（模拟）':''}</span><span>连线发光 = 相邻两层同时活跃，亮点沿线移动</span>`,
+   infer:`<span>低<i class="grad"></i>高：该层这一步对当前 token 的改动幅度${SIM&&!DEMO?'（模拟）':''}</span><span>连线发光 = 相邻两层同时活跃，亮点沿线移动</span>`,
    train:`<span><i class="sw" style="background:#b8e36a"></i>权重增大</span><span><i class="sw" style="background:#ff7850"></i>权重减小</span><span>${deltaReal?'ΔW 来自适配器的真实值（与权重图同一位置）':'还没有训练结果：点“去训练…”完成一次训练后，这里显示适配器真实改动的位置和大小'}</span>`,
    lens:`<span>每一列是一个生成的字，每一行是一层：格子里是这一层“如果在这里停下”最可能输出的字，颜色越深越有把握。最下面一行是模型真正输出的字。</span>`,
    weights:`<span><i class="sw" style="background:#ff9a52"></i>正权重</span><span><i class="sw" style="background:#4cc3d9"></i>负权重</span><span>颜色深浅 = |权重| ÷ 该矩阵标准差（3σ 封顶）</span>`}[mode]}
