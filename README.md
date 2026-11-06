@@ -165,4 +165,4 @@ Issues and pull requests are welcome — hardware reports (chip, memory, model, 
 
 ## License
 
-[MIT](LICENSE). Neurolume was previously called *Cortex*; old links redirect.
+[MIT](LICENSE).

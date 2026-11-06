@@ -119,9 +119,9 @@ Neurolume 的核心代码在任何有 Python ≥3.11 和 git 的环境里都能�
 - **未做**：适配器上线前的 dev/holdout 评测闸门、回归自动回滚、知识库（RAG）导入——属于 M2/M4。界面上已提示“适配器尚未评测，先小范围试用”。
 - **未在硬件上验证**：下载（huggingface_hub 的 `tqdm_class`）、`mlx_lm lora` 输出解析的 val loss 行、适配器键名（`layers.N.<模块>.lora_a/b`）。首次真机运行时按报错调整。
 
-## D21 项目改名为 Neurolume，并改成可安装的包 · 已定（2026-11-02）
-- 原名 Cortex 与多个知名产品重名（Snowflake Cortex、Cortex.cpp 等），不利于搜索和传播。新名 Neurolume（neuron + lume，“点亮神经元”），GitHub 同名仓库极少。
-- 包名、命令、环境变量（`NEUROLUME_*`）、数据目录（`~/Library/Application Support/Neurolume`）、界面设置（localStorage `neurolume.*`）同步改名；旧名的兼容与自动迁移代码已在迁移完成后移除（2026-11-06）。
+## D21 项目名 Neurolume，并改成可安装的包 · 已定（2026-11-02）
+- 项目名定为 Neurolume（neuron + lume，“点亮神经元”）：避免与已有知名产品重名，便于搜索和传播，GitHub 同名仓库极少。
+- 包名、命令、环境变量（`NEUROLUME_*`）、数据目录（`~/Library/Application Support/Neurolume`）、界面设置（localStorage `neurolume.*`）统一使用 Neurolume 命名。
 - 界面和默认配置放进包内（`src/neurolume/web`、`src/neurolume/defaults.toml`），因此 `uvx --from git+…` 一行即可运行；在仓库里运行时模型仍放在仓库的 `models/`，已下载的模型不受影响。
 - 前端从单文件拆成 `css/` 和按顺序加载的 `js/` 普通脚本，不引入构建工具。
 

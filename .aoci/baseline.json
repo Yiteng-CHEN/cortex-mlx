@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-11-06T10:42:56Z",
-  "updated_at": "2026-11-06T11:06:21Z",
+  "updated_at": "2026-11-06T11:21:07Z",
   "files": {
     ".gitattributes": {
       "role": "index",
@@ -83,21 +83,21 @@
     },
     "README.md": {
       "role": "index",
-      "sha256": "7acce058b24b0f67aa5e6e460d9845b574277b063169e6fc5cd1f6f7e0c4e573",
-      "size": 15431,
-      "normalized_sha256": "7acce058b24b0f67aa5e6e460d9845b574277b063169e6fc5cd1f6f7e0c4e573"
+      "sha256": "1e445bfe11ab6577dbd7c8253d8d5cc1b9f147219d2cb52be59c515da917af14",
+      "size": 15369,
+      "normalized_sha256": "1e445bfe11ab6577dbd7c8253d8d5cc1b9f147219d2cb52be59c515da917af14"
     },
     "README.zh-CN.md": {
       "role": "index",
-      "sha256": "a0b7798d26a923e6d3fec11b6f09422af332d3a8ff984acc9e2480ffc8484a95",
-      "size": 15134,
-      "normalized_sha256": "a0b7798d26a923e6d3fec11b6f09422af332d3a8ff984acc9e2480ffc8484a95"
+      "sha256": "2efa5e829ca1bd27ee8a2102b4cacbdd0940dfa8ef5693c8dd2439f383f64793",
+      "size": 15079,
+      "normalized_sha256": "2efa5e829ca1bd27ee8a2102b4cacbdd0940dfa8ef5693c8dd2439f383f64793"
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "1448ce81e8b2a3182f294f8c129bbcbd9ac3ecf2f7845bb645d473c622a38ef6",
-      "size": 23283,
-      "normalized_sha256": "1448ce81e8b2a3182f294f8c129bbcbd9ac3ecf2f7845bb645d473c622a38ef6"
+      "sha256": "c6a6321dd60be3e1900e75018300aea8cd631b14546d090a98a655f9bb1cc01e",
+      "size": 23155,
+      "normalized_sha256": "c6a6321dd60be3e1900e75018300aea8cd631b14546d090a98a655f9bb1cc01e"
     },
     "aoci.meta.txt": {
       "role": "index",
@@ -119,9 +119,9 @@
     },
     "docs/DECISIONS.md": {
       "role": "index",
-      "sha256": "6a70195312bb0921a036f866d5d0413b59bbcbec69f281cc261f3320a624696f",
-      "size": 16026,
-      "normalized_sha256": "6a70195312bb0921a036f866d5d0413b59bbcbec69f281cc261f3320a624696f"
+      "sha256": "809a9719d83b283a706bf9844f7c9b894ecdcf19a66051415f7779ae0667c36a",
+      "size": 15914,
+      "normalized_sha256": "809a9719d83b283a706bf9844f7c9b894ecdcf19a66051415f7779ae0667c36a"
     },
     "docs/DEVELOPMENT.zh-CN.md": {
       "role": "index",

@@ -165,4 +165,4 @@ docs/                      SIGNALS.md、技术决定、计划
 
 ## 许可证
 
-[MIT](LICENSE)。Neurolume 原名 *Cortex*，旧链接会自动跳转。
+[MIT](LICENSE)。

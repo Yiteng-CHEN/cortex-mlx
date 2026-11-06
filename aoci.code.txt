@@ -29,7 +29,7 @@ ci.yml[OQ6T]: F:在ubuntu与macos上用Python 3.12跑纯标准库unittest,并对
 local.example.toml[FC4T]: F:config/local.toml的示例:数据目录与评测用repos(path/setup/test/timeout/env) | R:code:src/neurolume/config.py,code:src/neurolume/defaults.toml | A:- | S:test命令中{tests}与{python}会被替换;真正的local.toml被git忽略
 
 ===/Users/eaton/Documents/Neurolume/docs/===
-DECISIONS.md[SB7S]: F:技术决定记录D1到D23(MLX-LM、数据目录、底座选定Devstral Small 2、界面化、改名Neurolume、真机结果) | R:code:PLAN.md,code:docs/PROJECT_BRIEF.md | A:- | S:涉及版本与API的结论必须先联网核实再记入此处;编号D17排在D16之前;D21记录的改名兼容与自动迁移代码已于2026-11-06移除
+DECISIONS.md[SB7S]: F:技术决定记录D1到D23(MLX-LM、数据目录、底座选定Devstral Small 2、界面化、项目命名Neurolume、真机结果) | R:code:PLAN.md,code:docs/PROJECT_BRIEF.md | A:- | S:涉及版本与API的结论必须先联网核实再记入此处;编号D17排在D16之前
 DEVELOPMENT.zh-CN.md[SV4T]: F:中文开发说明:日常使用、环境、M0评测、测试、AOCI与安全隐私合规 | R:code:README.zh-CN.md,code:docs/DECISIONS.md | A:- | S:-
 PROJECT_BRIEF.md[SB7S]: F:项目简报v4(单机Mac版):目标、原则、架构、组件、底座、评测集、学习、资源与大脑可视化 | R:code:PLAN.md,code:docs/DECISIONS.md | A:- | S:-
 SIGNALS.md[SO6T]: F:说明界面每个信号如何测得:逐层活动、logit lens、训练视图与哪些是模拟的 | R:code:src/neurolume/telemetry/probe.py | A:- | S:层活动是真实测量但不代表该层对答案重要;层间连线里16条细线与移动圆点仅为示意
@@ -42,7 +42,7 @@ move-models.sh[XD4T]: F:把已下载的两个M0候选模型从HF缓存移到项�
 ===/Users/eaton/Documents/Neurolume/src/neurolume/===
 __init__.py[RG2T]: F:包入口,仅声明__version__ | R:code:pyproject.toml | A:__version__ | S:值为0.1.0,与pyproject.toml的0.2.0不一致
 cli.py[EU7M]: F:neurolume命令行入口:eval(mine/review/list/run/compare/cleanup)、models(inspect/probe)、sys(mem/config)、serve、mcp-search与fixture子命令 | R:code:src/neurolume/config.py,code:src/neurolume/server/app.py,code:src/neurolume/evals/runner.py,code:src/neurolume/mcp_search.py | A:main,build_parser | S:-
-config.py[FC7S]: F:两层TOML配置:包内defaults.toml加可选local.toml深度合并,提供Config/Candidate/RepoConfig/EvalSettings与模型缓存环境 | R:code:src/neurolume/defaults.toml,code:src/neurolume/paths.py | A:load_config,Config,hf_cache_dir,apply_model_env | S:local.toml先找checkout内config/再找~/.config/neurolume;只识别NEUROLUME_DATA_DIR与NEUROLUME_MODELS_DIR环境变量并优先于配置文件,旧CORTEX_*名与旧数据目录自动迁移已移除
+config.py[FC7S]: F:两层TOML配置:包内defaults.toml加可选local.toml深度合并,提供Config/Candidate/RepoConfig/EvalSettings与模型缓存环境 | R:code:src/neurolume/defaults.toml,code:src/neurolume/paths.py | A:load_config,Config,hf_cache_dir,apply_model_env | S:local.toml先找checkout内config/再找~/.config/neurolume;环境变量NEUROLUME_DATA_DIR与NEUROLUME_MODELS_DIR优先于配置文件
 defaults.toml[FC6T]: F:随包提交的默认配置:数据与模型目录、生成温度与token上限、评测限额与沙箱超时、候选模型 | R:code:src/neurolume/config.py,code:config/local.example.toml | A:- | S:评测稳定性要求base必须N/N失败而target N/N通过;表按深度合并且local优先
 gitutil.py[IB5T]: F:git命令行薄封装:取某提交的文件内容、提交改动列表与说明、单亲提交枚举 | R:- | A:git,show_file,commit_changes,commit_message,single_parent_commits | S:show_file对不存在或非UTF-8文件返回None而不抛错
 mcp_search.py[IN5T]: F:极简stdio MCP服务,给任何本地模型提供web_search与web_fetch两个工具 | R:code:src/neurolume/server/search.py,code:src/neurolume/cli.py | A:web_search,web_fetch,call_tool | S:协议是换行分隔的JSON-RPC 2.0;抓取的页面文本是不可信数据而非指令;自称尚未对真实MCP客户端验证
