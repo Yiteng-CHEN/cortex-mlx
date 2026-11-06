@@ -1,0 +1,93 @@
+<title>Neurolume 大脑</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="css/app.css">
+
+<div class="app">
+<div class="mon">
+  <div class="scan">
+    <canvas id="gl" aria-label="三维全息神经网络，每一圈节点是一层，颜色表示该层的实时活动"></canvas>
+    <h1>Neurolume</h1>
+    <div class="mdl" id="scanModel"></div>
+    <canvas id="hud" aria-hidden="true"></canvas>
+    <button class="shp" id="btnShape" type="button" title="切换大脑的形态：星云 / 球体">形态：星云</button>
+    <div class="bar"><i style="top:-3px">高</i><i style="bottom:-3px">低</i></div>
+    <div class="meta"><span id="scanSig"></span><span id="scanTps"></span></div>
+  </div>
+<div class="net">
+  <div class="nh">
+    <div class="nh-top">
+      <span class="ttl"><b>神经网络层</b> · <span id="nlayers">40</span> 层，层与层之间的连线随活动发光</span>
+      <button id="btnLearn" type="button">这张图怎么看？</button>
+    </div>
+    <div class="nh-bar">
+      <span class="seg" id="modes" role="group" aria-label="显示模式">
+        <button data-m="infer" aria-pressed="true">推理</button>
+        <button data-m="train" aria-pressed="false">训练</button>
+        <button data-m="weights" aria-pressed="false">权重</button>
+        <button data-m="lens" aria-pressed="false" title="每生成一个字，看看每一层“如果在这里停下”会预测什么（logit lens，需要真实模型）">逐层预测</button>
+      </span>
+      <button id="step" type="button" title="打开训练向导，用你的数据真正训练一次">去训练…</button>
+      <span id="dataNote"></span>
+    </div>
+  </div>
+  <div class="nw" id="nwrap"><div class="gut" id="gut"></div><div class="scroller" id="scroller"><canvas id="net"></canvas></div></div>
+  <div class="lensv" id="lensv" hidden></div>
+  <div class="tl" id="tl" hidden>
+    <div class="tlh"><span id="tlLab"></span><span class="sp"></span>
+      <span class="lensctl" id="lensCtl"><span class="hint">逐层预测显示</span>
+        <span class="seg" id="lensPre" role="group" aria-label="快速选择显示哪些层"><button type="button" data-p="all">全部层</button><button type="button" data-p="half">后一半</button><button type="button" data-p="last16">最后 16 层</button></span>
+        <span class="hint">从</span><select id="lensFrom" aria-label="从第几层开始显示"></select><span class="hint">到</span><select id="lensTo" aria-label="显示到第几层"></select>
+        <select id="lensStep" aria-label="每隔几层显示一层"><option value="1">每一层都显示</option><option value="2">隔一层显示一层</option><option value="4">每 4 层显示一层</option></select></span>
+      <button id="tlPlay" type="button">▶ 回放</button><button id="tlLatest" type="button" title="取消选中，回到最近一次回答的全部内容">看最近一次回答</button></div>
+    <canvas id="tlc" aria-label="回答里每个字一根柱子：柱子越高，模型在这个字上越费劲；点击或拖动回看"></canvas>
+    <input type="range" id="tlr" min="0" max="0" value="0" aria-label="选择第几个字">
+    <div class="tlkey" id="tlKey"></div>
+    <div class="tlt" id="tlt" data-notr></div>
+    <div class="hint tlk">在对话里选中一段 AI 回答，就只看那一段</div>
+  </div>
+  <div class="trainbars" id="trainbars" hidden><div class="hint" id="trainbarsLab"></div><div class="lbars" id="trainbarsBars"></div></div>
+  <div class="key" id="key"></div>
+</div>
+</div>
+  <section class="chat" aria-label="聊天">
+    <div class="chead">
+      <div class="lhs">
+        <label for="model" class="badge" style="border:0;padding:0">模型</label>
+        <select id="model" aria-label="选择模型"></select>
+        <span class="badge" id="mode"></span>
+        <select id="adapter" aria-label="适配器" hidden></select>
+        <button id="btnCompare" type="button" hidden title="同一个问题，看原模型和训练后的回答有什么不同">对比原模型</button>
+      </div>
+      <div class="tools">
+        <button id="btnLib" type="button">模型库</button>
+        <button id="btnTrain" type="button">训练</button>
+        <span class="tseg"><button id="btnWeb" type="button" aria-pressed="false" title="打开后，模型需要时会自己上网搜索并读网页（你的问题会发给搜索服务）">联网搜索</button><button id="btnWebSet" type="button" title="搜索设置" aria-label="搜索设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></span>
+        <button id="btnBooks" type="button" title="导入书和文档，对话时模型会先从里面查资料再回答">知识库</button>
+        <button id="btnLang" data-notr type="button">English</button>
+        <button id="btnAgent" type="button" title="让模型读取你选的项目文件夹并提出修改（每次修改都要你批准）">Agent</button>
+        <button id="clear" type="button" title="清空对话" aria-label="清空对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button>
+      </div>
+    </div>
+    <div id="msgs" aria-live="polite"></div>
+    <form id="form">
+      <textarea id="inp" placeholder="问点什么，Enter 发送，Shift+Enter 换行" aria-label="消息"></textarea>
+      <button id="send" type="submit">发送</button>
+    </form>
+  </section>
+</div>
+<div id="tip" hidden></div>
+<div class="ov" id="ov" hidden><div class="mod" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="mh"><b id="mtitle"></b><button id="mclose" type="button">关闭</button></div><div id="mbody"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/state.js"></script>
+<script src="js/holo.js"></script>
+<script src="js/net.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/panels.js"></script>
+<script src="js/studio.js"></script>
+<script src="js/main.js"></script>

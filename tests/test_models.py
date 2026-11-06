@@ -1,7 +1,7 @@
 import unittest
 
-from cortex.models.inspect import classify_layer, compress_pattern, summarize_layout
-from cortex.models.train_probe import parse_lora_output, synthetic_examples
+from neurolume.models.inspect import classify_layer, compress_pattern, summarize_layout
+from neurolume.models.train_probe import parse_lora_output, synthetic_examples
 
 
 class TestInspect(unittest.TestCase):
@@ -51,3 +51,48 @@ class TestProbe(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestProbeNewFormat(unittest.TestCase):
+    NEW = ("\x1b[1miter   train_loss     tok/s     tokens\x1b[0m\n"
+           "  \x1b[38;5;244m   1\x1b[0m    \x1b[1;35mval\x1b[0m \x1b[1m0.162\x1b[0m    \x1b[38;5;244m1.93s\x1b[0m\n"
+           "  \x1b[38;5;244m   5\x1b[0m    \x1b[1;32m0.081 ▼\x1b[0m    \x1b[1m  388\x1b[0m    \x1b[38;5;244m  8.0k\x1b[0m\n"
+           "  \x1b[38;5;244m  10\x1b[0m    \x1b[1;32m0.017 ▼\x1b[0m    \x1b[1m  395\x1b[0m    \x1b[38;5;244m 15.9k\x1b[0m\n"
+           "NEUROLUME_PEAK_GB=41.25\n")
+
+    def test_rich_table_and_peak(self):
+        r = parse_lora_output(self.NEW)
+        self.assertEqual(r["tokens_per_sec"], 391.5)
+        self.assertAlmostEqual(r["seconds_per_step"], 15900 / 10 / 391.5, places=1)
+        self.assertEqual(r["peak_memory_gb"], 41.25)
+
+    def test_failed_run_has_no_numbers(self):
+        r = parse_lora_output("RuntimeError: [METAL] Insufficient Memory\nNEUROLUME_PEAK_GB=95.10\n")
+        self.assertIsNone(r["seconds_per_step"])
+        self.assertEqual(r["peak_memory_gb"], 95.1)
+
+
+class TestLayerContainer(unittest.TestCase):
+    def test_skips_property_that_returns_a_copy(self):
+        from neurolume.backends.mlxutil import find_layer_container
+
+        class Inner:
+            def __init__(self):
+                self.layers = ["a", "b", "c"]
+
+            @property
+            def pipeline_layers(self):
+                return self.layers[0:3]          # fresh slice each time, like mlx-lm
+
+        class Top:
+            def __init__(self):
+                self.language_model = type("L", (), {})()
+                self.language_model.model = Inner()
+
+            @property
+            def layers(self):
+                return self.language_model.model.pipeline_layers
+
+        top = Top()
+        got = find_layer_container(top)
+        self.assertIs(got, top.language_model.model.layers)

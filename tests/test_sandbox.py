@@ -3,11 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cortex.config import EvalSettings, RepoConfig
-from cortex.evals.sandbox import (UnsafePathError, apply_files, cleanup_stale, evaluate,
+from neurolume.config import EvalSettings, RepoConfig
+from neurolume.evals.sandbox import (UnsafePathError, apply_files, cleanup_stale, evaluate,
                                   minimal_env, run_command)
-from cortex.evals.task import EvalTask
-from cortex.gitutil import git
+from neurolume.evals.task import EvalTask
+from neurolume.gitutil import git
 
 from .helpers import FixtureEnv
 
@@ -53,14 +53,14 @@ class TestRunCommand(unittest.TestCase):
             self.assertLess(r.seconds, 10)
 
     def test_env_is_minimal(self):
-        os.environ["CORTEX_FAKE_SECRET_TOKEN"] = "s3cret"
+        os.environ["NEUROLUME_FAKE_SECRET_TOKEN"] = "s3cret"
         try:
             with tempfile.TemporaryDirectory() as d:
                 r = run_command("env", Path(d), timeout_s=10, cpu_seconds=10, env=minimal_env({"X": "1"}))
             self.assertNotIn("s3cret", r.output)
             self.assertIn("X=1", r.output)
         finally:
-            del os.environ["CORTEX_FAKE_SECRET_TOKEN"]
+            del os.environ["NEUROLUME_FAKE_SECRET_TOKEN"]
 
 
 class TestEvaluate(unittest.TestCase):
@@ -77,7 +77,7 @@ class TestEvaluate(unittest.TestCase):
         self.env.cleanup()
 
     def test_base_fails_reference_passes_and_worktrees_cleaned(self):
-        from cortex.evals.sandbox import reference_solution
+        from neurolume.evals.sandbox import reference_solution
 
         s = self.env.cfg.eval
         base = evaluate(self.env.paths, self.repo, self.task, s, solution=None, runs=2)

@@ -1,1 +1,112 @@
 #AOCI-CODE-VOLUME: 1
+
+===/Users/eaton/Documents/Neurolume/===
+.gitattributes[FV4T]: F:强制所有文本文件以LF检出,二进制保持原样 | R:- | A:- | S:AOCI按原始字节做Baseline,CRLF改写会使整棵树被判定为Stale
+.gitignore[FV5T]: F:忽略本机AOCI/Claude/Codex配置、Python与Node产物、模型权重与运行数据、config/local.toml和密钥 | R:code:config/local.example.toml | A:- | S:.aoci/不得被忽略(自带.gitignore);aoci.*.txt与AGENTS.md必须保持受跟踪;模型与评测结果不进仓库
+.python-version[FV3T]: F:为uv固定Python 3.12 | R:code:pyproject.toml | A:- | S:-
+AGENTS.md[SQ6S]: F:AOCI生成的Agent合同,规定会话开始读取Overview、任务收尾调用maintain与update_entry的流程 | R:code:CLAUDE.md | A:- | S:由AOCI接入时生成,Agent必须遵守其认知读取与维护顺序,不要为方便而改写流程语义
+CLAUDE.md[SQ6T]: F:Claude Code入口说明,导入AGENTS.md并给出AOCI用法与项目工作约定 | R:code:AGENTS.md,code:PLAN.md,code:docs/DECISIONS.md,code:docs/PROJECT_BRIEF.md | A:- | S:里程碑验收后必须停下来演示;删除类操作先dry-run并写日志;永不读取凭证文件;运行数据不进仓库
+CONTRIBUTING.md[SG4T]: F:贡献指南:项目布局、运行方式、基本规则与新手任务,附中文版 | R:code:README.md | A:- | S:-
+LICENSE[SG3T]: F:MIT许可证,版权方Neurolume contributors | R:code:pyproject.toml | A:- | S:-
+Neurolume.command[OU6T]: F:macOS双击启动器:补全PATH、uv sync --extra mlx后执行neurolume serve --open | R:code:src/neurolume/cli.py,code:pyproject.toml | A:- | S:缺少uv时只提示brew install uv并等待按键,不自动安装;异常退出时提示端口8765可能已被占用
+PLAN.md[SB6S]: F:开发计划与里程碑状态(M0到M6、风险、下一步) | R:code:docs/PROJECT_BRIEF.md,code:docs/DECISIONS.md | A:- | S:每个里程碑满足验收标准后必须停下来演示,经确认才进入下一个
+README.md[SU6S]: F:英文项目说明:功能、界面导览、FAQ、快速开始、实测数据、限制与代码结构 | R:code:README.zh-CN.md,code:docs/SIGNALS.md | A:- | S:-
+README.zh-CN.md[SU6S]: F:README的中文版,章节与英文版一一对应 | R:code:README.md | A:- | S:-
+pyproject.toml[FV7T]: F:包neurolume 0.2.0的打包配置,核心零依赖,mlx额外依赖仅darwin,入口neurolume.cli:main | R:code:src/neurolume/cli.py,code:.python-version | A:- | S:核心必须保持纯标准库(D9);mlx>=0.32.4;web与defaults.toml作为package-data打包;与src/neurolume/__init__.py的__version__不同步
+uv.lock[FV4L]: F:uv生成的依赖锁定文件,要求Python>=3.11 | R:code:pyproject.toml | A:- | S:由uv自动生成,不要手改
+
+===/Users/eaton/Documents/Neurolume/.github/ISSUE_TEMPLATE/===
+bug_report.yml[OQ3T]: F:GitHub缺陷反馈表单,中英双语,收集复现步骤、模型、Mac型号与终端日志 | R:- | A:- | S:-
+feature_request.yml[OU3T]: F:GitHub功能建议表单,中英双语,询问想要的功能与用途 | R:- | A:- | S:-
+
+===/Users/eaton/Documents/Neurolume/.github/===
+pull_request_template.md[OQ3T]: F:PR模板,要求说明改动原因并勾选unittest与界面实测 | R:code:CONTRIBUTING.md | A:- | S:-
+
+===/Users/eaton/Documents/Neurolume/.github/workflows/===
+ci.yml[OQ6T]: F:在ubuntu与macos上用Python 3.12跑纯标准库unittest,并对web/js逐个做node语法检查 | R:code:pyproject.toml | A:- | S:测试靠PYTHONPATH=src运行且不需要模型或mlx,CI环境不能依赖Apple芯片
+
+===/Users/eaton/Documents/Neurolume/config/===
+local.example.toml[FC4T]: F:config/local.toml的示例:数据目录与评测用repos(path/setup/test/timeout/env) | R:code:src/neurolume/config.py,code:src/neurolume/defaults.toml | A:- | S:test命令中{tests}与{python}会被替换;真正的local.toml被git忽略
+
+===/Users/eaton/Documents/Neurolume/docs/===
+DECISIONS.md[SB7S]: F:技术决定记录D1到D23(MLX-LM、数据目录、底座选定Devstral Small 2、界面化、改名Neurolume、真机结果) | R:code:PLAN.md,code:docs/PROJECT_BRIEF.md | A:- | S:涉及版本与API的结论必须先联网核实再记入此处;编号D17排在D16之前;D21记录的改名兼容与自动迁移代码已于2026-11-06移除
+DEVELOPMENT.zh-CN.md[SV4T]: F:中文开发说明:日常使用、环境、M0评测、测试、AOCI与安全隐私合规 | R:code:README.zh-CN.md,code:docs/DECISIONS.md | A:- | S:-
+PROJECT_BRIEF.md[SB7S]: F:项目简报v4(单机Mac版):目标、原则、架构、组件、底座、评测集、学习、资源与大脑可视化 | R:code:PLAN.md,code:docs/DECISIONS.md | A:- | S:-
+SIGNALS.md[SO6T]: F:说明界面每个信号如何测得:逐层活动、logit lens、训练视图与哪些是模拟的 | R:code:src/neurolume/telemetry/probe.py | A:- | S:层活动是真实测量但不代表该层对答案重要;层间连线里16条细线与移动圆点仅为示意
+
+===/Users/eaton/Documents/Neurolume/scripts/===
+fixture_repo.py[XQ3T]: F:命令行包装,生成演示用合成git仓库并打印可粘贴的config/local.toml片段 | R:code:src/neurolume/devtools/fixture_repo.py | A:fixture_repo.py <path> | S:-
+m0-bench.sh[XA4T]: F:M0基准脚本:对候选模型依次做内存检查、inspect和dev集评测,日志写入数据目录 | R:code:src/neurolume/cli.py,code:src/neurolume/models/inspect.py | A:m0-bench.sh [候选...] | S:仅限Apple芯片;首次运行会下载约44GB权重;每步独立进程以保证同时只有一个模型在内存
+move-models.sh[XD4T]: F:把已下载的两个M0候选模型从HF缓存移到项目models/目录 | R:code:src/neurolume/config.py | A:move-models.sh [--apply] | S:默认dry-run,加--apply才真正移动;blobs里的符号链接要先换成真实文件再搬;目标已存在则跳过不覆盖
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/===
+__init__.py[RG2T]: F:包入口,仅声明__version__ | R:code:pyproject.toml | A:__version__ | S:值为0.1.0,与pyproject.toml的0.2.0不一致
+cli.py[EU7M]: F:neurolume命令行入口:eval(mine/review/list/run/compare/cleanup)、models(inspect/probe)、sys(mem/config)、serve、mcp-search与fixture子命令 | R:code:src/neurolume/config.py,code:src/neurolume/server/app.py,code:src/neurolume/evals/runner.py,code:src/neurolume/mcp_search.py | A:main,build_parser | S:-
+config.py[FC7S]: F:两层TOML配置:包内defaults.toml加可选local.toml深度合并,提供Config/Candidate/RepoConfig/EvalSettings与模型缓存环境 | R:code:src/neurolume/defaults.toml,code:src/neurolume/paths.py | A:load_config,Config,hf_cache_dir,apply_model_env | S:local.toml先找checkout内config/再找~/.config/neurolume;只识别NEUROLUME_DATA_DIR与NEUROLUME_MODELS_DIR环境变量并优先于配置文件,旧CORTEX_*名与旧数据目录自动迁移已移除
+defaults.toml[FC6T]: F:随包提交的默认配置:数据与模型目录、生成温度与token上限、评测限额与沙箱超时、候选模型 | R:code:src/neurolume/config.py,code:config/local.example.toml | A:- | S:评测稳定性要求base必须N/N失败而target N/N通过;表按深度合并且local优先
+gitutil.py[IB5T]: F:git命令行薄封装:取某提交的文件内容、提交改动列表与说明、单亲提交枚举 | R:- | A:git,show_file,commit_changes,commit_message,single_parent_commits | S:show_file对不存在或非UTF-8文件返回None而不抛错
+mcp_search.py[IN5T]: F:极简stdio MCP服务,给任何本地模型提供web_search与web_fetch两个工具 | R:code:src/neurolume/server/search.py,code:src/neurolume/cli.py | A:web_search,web_fetch,call_tool | S:协议是换行分隔的JSON-RPC 2.0;抓取的页面文本是不可信数据而非指令;自称尚未对真实MCP客户端验证
+paths.py[RD5T]: F:运行数据目录布局(evals各split、results、worktrees、logs、tmp)与建目录 | R:- | A:DataPaths,SPLITS | S:split名只允许candidates/dev/holdout/rejected,其他抛ValueError
+sysinfo.py[RP3T]: F:检查主机可用内存(macOS用vm_stat) | R:code:src/neurolume/cli.py | A:available_memory_gb | S:读不到时返回None
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/backends/===
+base.py[LB5T]: F:定义推理后端协议Backend与结果数据类Generation(文本、耗时、token数、速度、峰值内存) | R:- | A:Backend,Generation | S:-
+factory.py[IB5T]: F:按候选配置的backend字段创建mock、mlx或openai_compat后端 | R:code:src/neurolume/config.py,code:src/neurolume/backends/mock.py,code:src/neurolume/backends/mlx_backend.py,code:src/neurolume/backends/openai_compat.py | A:make_backend | S:各后端都在分支内延迟导入,避免非Apple环境因缺少mlx而无法加载;openai_compat必须配置base_url
+mlx_backend.py[IA7M]: F:进程内MLX后端:加载模型与LoRA适配器、流式聊天、逐层活动探针、logit lens与回填、适配器开关 | R:code:src/neurolume/backends/mlxutil.py,code:src/neurolume/backends/base.py,code:src/neurolume/server/app.py | A:MLXBackend | S:仅Apple芯片;依赖mlx-lm接口(load/stream_generate/make_sampler),版本变动需回到真机核对;set_adapter_enabled通过把LoRA scale置0实现开关
+mlxutil.py[IP6S]: F:封装名称随版本变化的MLX接口(峰值/活动内存、内存上限)、模型加载与定位transformer层 | R:code:src/neurolume/backends/mlx_backend.py | A:peak_memory_gb,active_memory_bytes,reset_peak_memory,set_memory_limit_gb,load_model,find_layers | S:mx.metal.*与mx.*名称在版本间迁移,查找必须防御式处理;文件自称未在真机验证
+mock.py[TQ4T]: F:确定性假后端,reference返回参考解、noop返回基线文件、garbage返回无法解析的文本 | R:code:src/neurolume/evals/sandbox.py,code:src/neurolume/evals/prompt.py,code:src/neurolume/backends/base.py | A:MockBackend,make_mock | S:-
+openai_compat.py[IN5T]: F:通过urllib调用任意OpenAI兼容的/chat/completions服务(mlx_lm.server、LM Studio、llama.cpp) | R:code:src/neurolume/backends/base.py | A:OpenAICompatBackend | S:-
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/devtools/===
+fixture_repo.py[XQ4S]: F:构建合成git仓库,其历史覆盖挖题器的每条路径(接受、仅文档、仅测试、flaky、过多行、基线不失败) | R:code:src/neurolume/evals/miner.py,code:scripts/fixture_repo.py | A:build,TEST_COMMAND | S:各提交的预期挖题结果写在模块文档里,是miner测试的真值,改历史会破坏测试
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/evals/===
+miner.py[DB6S]: F:从git历史挖评测题:找同时改源码和测试的单亲提交,按行数/文件数/稳定性筛选并去重落盘 | R:code:src/neurolume/evals/sandbox.py,code:src/neurolume/evals/task.py,code:src/neurolume/gitutil.py,code:src/neurolume/config.py | A:mine,candidate_from_commit,split_counts,estimate_tokens | S:题目只存引用不复制代码(D14);按content_hash去重以保护holdout
+parse.py[KB6T]: F:解析模型输出里的"### 路径"加围栏代码块,得到完整文件内容 | R:code:src/neurolume/evals/prompt.py | A:parse_files,ParseResult | S:先剥离<think>块(含未闭合的);不在任务允许列表里的路径记入ignored而不接受
+prompt.py[DB5T]: F:构造评测提示:任务说明、必须通过的测试、当前源码与输出格式,并估算max_tokens | R:code:src/neurolume/evals/task.py,code:src/neurolume/gitutil.py | A:build_prompt,fence,max_tokens_for | S:输出格式需与parse.py的"### 路径"加围栏约定保持一致
+report.py[AO4T]: F:汇总评测记录(通过率、格式错误率、速度、峰值内存)并生成候选对比表 | R:code:src/neurolume/paths.py,code:src/neurolume/evals/runner.py | A:summarize,latest_results | S:-
+review.py[AU4T]: F:对挖出的候选题做人工评审,按键分到dev、holdout或reject,支持预设决定 | R:code:src/neurolume/evals/task.py,code:src/neurolume/paths.py | A:review,describe | S:-
+runner.py[AB6T]: F:让后端对评测题生成答案,解析后在沙箱里用隐藏测试评分,状态为pass/fail/format_error/timeout/setup_failed | R:code:src/neurolume/evals/sandbox.py,code:src/neurolume/evals/parse.py,code:src/neurolume/evals/prompt.py,code:src/neurolume/backends/base.py | A:score_one,STATUSES | S:-
+sandbox.py[RS8M]: F:在一次性git worktree里应用候选解并跑测试命令,带精简环境、超时杀进程组与CPU/文件rlimit | R:code:src/neurolume/config.py,code:src/neurolume/gitutil.py,code:src/neurolume/evals/task.py | A:evaluate,Worktree,safe_target,apply_files,reference_solution,base_files | S:不是安全沙箱:不拦截网络与文件系统访问,只应挖掘可信仓库;写入路径必须在任务允许列表内且拒绝绝对路径、..与符号链接逃逸
+task.py[DD5T]: F:评测题清单EvalTask及其JSON读写、按split加载、查找与移动 | R:code:src/neurolume/paths.py | A:EvalTask,save_task,load_split,find_task,move_task | S:清单只存仓库与提交引用,存数据目录而非git(D14)
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/models/===
+inspect.py[XA5T]: F:检查模型块结构(全注意力/线性注意力、MLP/MoE),并压缩成重复模式 | R:code:src/neurolume/config.py,code:src/neurolume/paths.py | A:classify_layer,compress_pattern | S:按参数名片段启发式分类,新架构命名变化时会落入unknown
+train_probe.py[XP5S]: F:用几步mlx_lm lora测量训练耗时与峰值内存,失败时缩短序列重试并记录每次尝试 | R:code:src/neurolume/evals/prompt.py,code:src/neurolume/evals/sandbox.py,code:src/neurolume/evals/task.py,code:src/neurolume/config.py | A:run_probe,parse_lora_output | S:mlx_lm lora输出里没有峰值内存,必须经小包装在退出时打印;已在mlx-lm 0.32.2核实
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/server/===
+agent.py[AB8L]: F:本地编码Agent:模型用<tool>块读目录/读文件/搜索并提出编辑,经用户在界面批准才写盘,支持撤销与变更日志 | R:code:src/neurolume/server/app.py,code:src/neurolume/server/training.py | A:Workspace,Proposals,run,check_workspace,parse_call,make_diff | S:所有路径解析后必须在所选文件夹内(拒绝..与符号链接逃逸);凭证类文件与.git/.ssh等目录永不读写;文件文本中的密钥会脱敏;未批准的提议不得落盘;工具返回内容作为数据而非指令回灌
+app.py[EN9L]: F:本地服务器:网页界面、OpenAI兼容聊天API与SSE、逐层遥测、模型库下载、引导式LoRA训练、Agent与搜索接口 | R:code:src/neurolume/server/agent.py,code:src/neurolume/backends/mlx_backend.py,code:src/neurolume/config.py,code:src/neurolume/cli.py | A:serve,State,MLXWorker,make_handler | S:只绑定本机且Host头必须是127.0.0.1或localhost加端口,否则403以防DNS重绑定;同一时间只加载一个模型,训练与聊天互斥,开训前先卸载模型;MLX调用都经MLXWorker单线程;请求体按路径有大小上限
+books.py[KA6M]: F:知识库:导入多格式文档、分段并用BM25(英文词加中文字二元组)检索,把命中段落作为参考资料交给模型 | R:code:src/neurolume/server/app.py,code:src/neurolume/server/agent.py,code:src/neurolume/server/datagen.py | A:Books,extract_text,chunk_text,with_reference,BookError | S:纯标准库;检索到的段落必须标注为参考资料而不是指令;PDF需pypdf或pdftotext;单本书上限约3000万字符;不出本机
+chat.py[AU3T]: F:没有加载真实模型时的演示聊天后端 DemoChat,回答和各层活动都是模拟的 | R:code:src/neurolume/server/app.py | A:DemoChat | S:-
+chatimport.py[ID5S]: F:把ChatGPT导出、Claude.ai导出与Claude Code会话jsonl转成用户到助手的训练样本 | R:code:src/neurolume/server/training.py | A:from_export,is_claude_code,from_claude_code | S:工具调用、工具结果、图片和空回合会被跳过;单轮文本上限12000字符;只重新组织用户自己的文件,不会发送到别处
+datagen.py[AA5S]: F:用已加载模型把用户资料生成训练数据:qa配方从文档出问答对,style配方用指令反向翻译学用户风格 | R:code:src/neurolume/server/books.py,code:src/neurolume/server/training.py,code:src/neurolume/server/app.py | A:DataGen,snippets,parse_pairs,to_jsonl | S:style配方的训练对里答案是用户原始代码片段而非模型生成;生成结果必须经用户审核才成为数据集
+export.py[IE5S]: F:把训练好的适配器导出到Neurolume之外:mlx融合成独立MLX模型并链接到LM Studio,ollama融合反量化后写Modelfile并尝试ollama create | R:code:src/neurolume/server/app.py | A:Exporter,find_ollama,safe_name,dir_size | S:Ollama能否导入某架构由Ollama决定;无论成功与否都保留融合后的文件夹与Modelfile
+hardware.py[IH4T]: F:读取球体用的实时硬件负载:GPU利用率(ioreg)、内存(vm_stat)、CPU | R:code:src/neurolume/server/app.py | A:Hardware,parse_gpu,parse_vm_stat | S:读不到的项返回None让页面回退到模型自身活动;不需要sudo;解析格式尚未在真机验证
+library.py[AD6M]: F:模型库:列出候选与用户按HF repo id添加的模型,后台线程下载并用磁盘已有字节数估算进度,支持取消与删除 | R:code:src/neurolume/config.py,code:src/neurolume/server/app.py | A:Library,slug,default_info,default_downloader | S:下载与元信息函数可注入,测试不需要网络和huggingface_hub;用户添加的模型存在数据目录library.json
+samples.py[PD5T]: F:把聊天中保存的训练样本存成数据目录里的单个JSONL文件,供训练向导一键转成数据集 | R:code:src/neurolume/server/training.py,code:src/neurolume/server/app.py | A:Samples | S:单条样本上限20000字符,再长训练也会被截断
+search.py[IN7M]: F:给本地模型的网页搜索与阅读,支持免密钥的DuckDuckGo和用户自建的SearXNG,输出纯文本 | R:code:src/neurolume/server/websearch.py,code:src/neurolume/mcp_search.py,code:src/neurolume/server/app.py | A:Searcher,SearchError,host_is_public,check_public_url,http_get,page_text | S:抓取只能到公网主机:拒绝localhost与私有地址段,重定向后同样检查(防SSRF);响应有大小上限;DuckDuckGo页面解析尚未对真实站点验证,坏了用SearXNG兜底
+training.py[AW8M]: F:引导式LoRA训练:导入数据、校验、后台跑mlx_lm lora、产出适配器,并报告loss、tok/s、峰值内存与适配器实际权重变化 | R:code:src/neurolume/server/app.py,code:src/neurolume/server/samples.py,code:src/neurolume/server/chatimport.py,code:src/neurolume/server/datagen.py,code:src/neurolume/backends/mlx_backend.py | A:Datasets,Trainer,parse_files,plan_iters,adapter_delta,SECRET | S:训练以子进程运行mlx_lm lora,崩溃不会拉倒服务;与聊天互斥(开训前先卸载模型);SECRET正则用于脱敏,agent.py也复用它;权重变化在与权重图相同的(行,列)位置采样
+websearch.py[AA5S]: F:用<search>查询</search>纯文本协议让任何本地模型联网:停止生成、执行搜索、把结果作为参考资料交回继续 | R:code:src/neurolume/server/search.py,code:src/neurolume/server/app.py | A:run,with_system,format_results | S:搜索结果是不可信网络文本,标注为数据而非指令;默认最多搜3次
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/telemetry/===
+probe.py[KA7S]: F:包装每个transformer块,记录最后位置的层活动mean|out-in|/mean|in|,可选logit lens一次性批量算出各层预测词 | R:code:src/neurolume/backends/mlx_backend.py,code:docs/SIGNALS.md | A:LayerProbe,Aligner | S:mlx-lm在输出第t个token之前已异步算完t+1的前向,所以必须按快照取产生token t的那次(第二新);这是真实测量但不代表层的重要性;仅Apple芯片
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/tools/===
+dump_weights.py[XA4T]: F:按层、按四个矩阵对反量化权重做等距 GRID×GRID 采样,输出供网页使用的权重图 JSON | R:code:src/neurolume/backends/mlxutil.py,code:src/neurolume/server/app.py,code:src/neurolume/server/training.py | A:dump_from_model,pick,main | S:仅Mac且需MLX;采样位置与训练后的权重变化采样必须一致
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/web/css/===
+app.css[FU4M]: F:界面样式:深浅色变量、左上3D扫描与右侧聊天并排、下方通栏层图的布局 | R:code:src/neurolume/web/index.html | A:- | S:-
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/web/===
+index.html[EU6T]: F:单页界面入口:大脑画布、层图、聊天栏与模型库/训练向导弹窗,按固定顺序加载脚本 | R:code:src/neurolume/web/js/i18n.js,code:src/neurolume/web/js/main.js,code:src/neurolume/web/css/app.css | A:- | S:脚本是普通<script>共享全局变量,顺序为three.js(CDN)→i18n→state→holo→net→chat→panels→studio→main,调换会导致引用未定义
+
+===/Users/eaton/Documents/Neurolume/src/neurolume/web/js/===
+chat.js[AU6S]: F:聊天栏:发送消息、读取SSE流式回答、极简代码块渲染,以及Agent/知识库/联网三个开关 | R:code:src/neurolume/server/app.py,code:src/neurolume/web/js/net.js | A:- | S:三个开关存在localStorage(neurolume.agent/books/web);回答文本先转义再渲染以防XSS
+holo.js[AU6S]: F:three.js绘制的3D全息神经网络:每层一圈节点,相邻层反向旋转,颜色表示该层实时活动,带星云/球体形态 | R:code:src/neurolume/web/js/state.js,code:src/neurolume/web/index.html | A:- | S:一圈节点必须等于模型真实层数;依赖CDN加载的three.js r128
+i18n.js[LL5M]: F:中英文切换:按短语表替换界面文字(支持带数字的动态文字),并定义$取元素助手 | R:code:src/neurolume/web/js/state.js,code:src/neurolume/web/index.html | A:$,EN | S:聊天内容(提问与回答)不翻译;必须最先加载因为其他脚本都用$;语言设置只读localStorage的neurolume.lang
+main.js[AU5T]: F:渲染主循环:检测深浅色、按半衰期约0.4秒衰减各层活动并驱动大脑与层图重绘 | R:code:src/neurolume/web/js/holo.js,code:src/neurolume/web/js/net.js,code:src/neurolume/web/js/state.js | A:- | S:衰减与帧率无关;尊重prefers-reduced-motion
+net.js[AU5T]: F:神经网络层图画布:每层四个矩阵点阵、层间连线与脉冲,支持推理/训练等视图模式 | R:code:src/neurolume/web/js/state.js,code:docs/SIGNALS.md | A:buildNet | S:连线亮度为相邻层活动的几何平均;每束里的细线与移动圆点只是示意
+panels.js[AU6S]: F:模型库与训练向导弹窗,通过api()调用本地服务并轮询下载与训练进度 | R:code:src/neurolume/server/app.py,code:src/neurolume/server/library.py,code:src/neurolume/server/training.py | A:api,openOv,closeOv | S:需要本地服务在运行;关闭弹窗必须清除轮询定时器
+state.js[RU5T]: F:前端共享状态:层数NL、采样格G、已知模型结构KNOWN、四个矩阵MATS与主题变量读取 | R:code:src/neurolume/web/js/holo.js,code:src/neurolume/web/js/net.js | A:KNOWN,MATS | S:KNOWN是来自neurolume models inspect的实测结构,Qwen3.6为每4层里3层线性注意力+1层全注意力
+studio.js[AU6M]: F:工作室面板:回答时间轴热力图与逐层logit lens预测、效果对比、导出、训练数据生成、训练结果回看 | R:code:src/neurolume/server/app.py,code:src/neurolume/web/js/chat.js,code:src/neurolume/web/js/panels.js | A:- | S:拖动时间轴回看某个字时逐层预测表跟随;没开实时lens的回答需要按需回填(重跑一次模型)

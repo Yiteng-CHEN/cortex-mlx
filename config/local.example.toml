@@ -1,9 +1,9 @@
 # Copy to config/local.toml (git-ignored) and edit.
 # Each repo used for mining eval tasks needs a test command; {tests} is replaced with the
-# space-separated test files of the task, {python} with the Python running Cortex.
+# space-separated test files of the task, {python} with the Python running Neurolume.
 
 # [paths]
-# data_dir = "~/Library/Application Support/Cortex"
+# data_dir = "~/Library/Application Support/Neurolume"
 
 # [repos.myapp]
 # path = "~/code/myapp"

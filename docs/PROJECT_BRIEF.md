@@ -1,10 +1,10 @@
-# Cortex 项目简报（v4 · 单机 Mac 版）
+# Neurolume 项目简报（v4 · 单机 Mac 版）
 
 > 这是项目的原始需求说明，PLAN.md 由它细化而来。需求有变化时先改这里，再改 PLAN.md 和 docs/DECISIONS.md。
 
 ## 目标
-在一台 MacBook Pro（M5 Max，128GB 统一内存）上，做一个本地编程模型 Cortex。所有组件都在这台 Mac 上运行，不跨机器同步。
-我平时用已登录的 Claude Code 和 Codex 解决问题；Cortex 在后台观察学习，逐渐掌握我的项目约定和习惯；用 3D 大脑 UI 展示它思考和成长时的真实内部信号。
+在一台 MacBook Pro（M5 Max，128GB 统一内存）上，做一个本地编程模型 Neurolume。所有组件都在这台 Mac 上运行，不跨机器同步。
+我平时用已登录的 Claude Code 和 Codex 解决问题；Neurolume 在后台观察学习，逐渐掌握我的项目约定和习惯；用 3D 大脑 UI 展示它思考和成长时的真实内部信号。
 
 ## 原则
 1. 先证明"学习有效"，再做漂亮的 UI。每种学习手段（RAG、规则、LoRA）都必须用评测数据证明比不用更好，否则不上线。
@@ -35,7 +35,7 @@
   │ 评测闸门(dev + holdout) → 版本管理/回滚        │
   └──────────────────────┬────────────────────────┘
                          ▼ 加载适配器
-  ┌──────────── cortex-server 推理服务 ───────────┐
+  ┌──────────── neurolume-server 推理服务 ───────────┐
   │ mlx-lm 模型 + 层 hook                          │
   │ OpenAI 兼容接口 ← 编辑器 / OpenCode / 前端聊天  │
   │ WebSocket 广播：token事件 / 学习事件 / 快照     │
@@ -48,7 +48,7 @@
 ```
 
 ## 组件
-- **cortex-server**（Python）：mlx-lm 加载模型和当前 LoRA 适配器；OpenAI 兼容接口（/v1/chat/completions，支持流式）；内部 hook 各层，把汇总后的激活通过 WebSocket 广播。任何调用都会驱动大脑。
+- **neurolume-server**（Python）：mlx-lm 加载模型和当前 LoRA 适配器；OpenAI 兼容接口（/v1/chat/completions，支持流式）；内部 hook 各层，把汇总后的激活通过 WebSocket 广播。任何调用都会驱动大脑。
 - **observer**：git post-commit hook + Claude Code hooks（会话结束触发）+ Codex 会话记录解析，产出学习样本。
 - **learner**：影子对照、RAG 知识库、规则沉淀、LoRA 训练、评测闸门、版本管理。
 - **scheduler**：优先级、空闲检测、资源预算；所有重任务都必须经过它。

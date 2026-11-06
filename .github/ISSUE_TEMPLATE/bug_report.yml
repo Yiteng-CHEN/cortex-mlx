@@ -1,0 +1,26 @@
+name: Bug report / 问题反馈
+description: Something is broken / 有地方坏了
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / 发生了什么？
+      description: Steps to reproduce, what you expected, what you saw. / 怎么复现、预期是什么、实际看到什么。
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model / 模型
+      placeholder: devstral-small-2, qwen3.6-27b, …
+  - type: input
+    id: mac
+    attributes:
+      label: Mac (chip, memory) and macOS version / 电脑型号、内存、系统版本
+      placeholder: M4 Max 64GB, macOS 26.1
+  - type: textarea
+    id: log
+    attributes:
+      label: Terminal log (last ~30 lines) / 终端窗口最后约 30 行
+      render: text

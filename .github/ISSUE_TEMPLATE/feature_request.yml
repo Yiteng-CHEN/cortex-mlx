@@ -1,0 +1,14 @@
+name: Feature idea / 功能建议
+description: Suggest an idea / 提一个想法
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Neurolume to do? / 你希望 Neurolume 做什么？
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it matter to you? / 这对你有什么用？

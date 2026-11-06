@@ -1,6 +1,7 @@
 # --- AOCI: local state and host configs (contain absolute paths, never commit) ---
 # Keep aoci.txt / aoci.meta.txt / aoci.code.txt / AGENTS.md tracked.
-.aoci/
+# .aoci/ is NOT ignored here: it has its own .gitignore that lets formal assets
+# (baseline.json, config.json, ...) in and keeps machine-local files out.
 .mcp.json
 .claude/settings.json
 .claude/settings.local.json
@@ -19,7 +20,8 @@ dist/
 .vite/
 
 # --- Project data (models, adapters, samples, eval results live outside git) ---
-data/
+/data/
+/models/
 *.safetensors
 *.gguf
 
@@ -32,3 +34,7 @@ config/local.toml
 
 # --- macOS ---
 .DS_Store
+
+# --- 发布时排除 ---
+_to_delete/
+build/
